@@ -36,6 +36,8 @@ const VERIFY_EVERY: Duration = Duration::from_secs(30);
 pub struct Link {
     pub tx: rtrb::Producer<ToDp>,
     pub wake: OwnedFd,
+    /// Where requests go: 0xFF direct, 1–6 a receiver slot.
+    pub device: DeviceIndex,
 }
 
 impl Link {
@@ -118,7 +120,7 @@ impl Requester for RingRequester<'_> {
         }
         let req = Frame::request_with(
             ReportId::Long,
-            DeviceIndex::DIRECT,
+            self.link.device,
             fi,
             func,
             SoftwareId::DETENT,

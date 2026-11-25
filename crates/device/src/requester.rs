@@ -46,6 +46,21 @@ pub fn error_name(code: u8) -> &'static str {
     }
 }
 
+/// Send, retrying a USB stall. A Bolt receiver stalls a write now and then (EPIPE) and
+/// takes it again within ~10 ms (measured on the owner's receiver, 2026-11-25;
+/// docs/specs/hidpp.md "Receivers"). Control-plane only: it may sleep up to 60 ms.
+pub fn send_retrying<T: Transport>(t: &mut T, f: &Frame) -> std::io::Result<()> {
+    for wait_ms in [10, 20, 30] {
+        match t.send(f) {
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
+                std::thread::sleep(Duration::from_millis(wait_ms));
+            }
+            r => return r,
+        }
+    }
+    t.send(f)
+}
+
 pub struct DirectRequester<T: Transport> {
     transport: T,
     device: DeviceIndex,
@@ -120,6 +135,10 @@ impl<T: Transport> DirectRequester<T> {
         &mut self.transport
     }
 
+    pub fn device(&self) -> DeviceIndex {
+        self.device
+    }
+
     /// Direct (Bluetooth/USB) devices sometimes answer with device index 0x00 instead of
     /// 0xFF (docs/research/prior-art.md, "Transport").
     fn is_ours(&self, frame: &Frame) -> bool {
@@ -140,7 +159,7 @@ impl<T: Transport> DirectRequester<T> {
         feature_index: u8,
         function: u8,
     ) -> Result<Option<Frame>, RequestError> {
-        self.transport.send(req)?;
+        send_retrying(&mut self.transport, req)?;
         let deadline = Instant::now() + self.timeout;
         loop {
             let now = Instant::now();
@@ -254,6 +273,33 @@ mod tests {
             Err(RequestError::Device(0x07)) => {}
             other => panic!("unexpected {other:?}"),
         }
+    }
+
+    #[test]
+    fn talks_to_a_receiver_slot() {
+        let mut t = MockTransport::new();
+        // another slot's notification, a receiver error for an empty slot (not ours),
+        // then slot 2's answer: protocol 4.5 (verbatim, owner's Bolt receiver)
+        t.push_inbound(long(&[0x11, 0x01, 0x04, 0x00, 1, 1, 1]));
+        t.push_inbound(Frame::parse(&[0x10, 0x03, 0x8F, 0x00, 0x1E, 0x09, 0x00]).unwrap());
+        t.push_inbound(long(&[0x11, 0x02, 0x00, 0x1E, 0x04, 0x05, 0x5A]));
+        let mut r = DirectRequester::new(t, DeviceIndex(2));
+        let resp = r.request(0, 1, &[0, 0, 0x5A]).unwrap();
+        assert_eq!(&resp.params()[..2], &[4, 5]);
+        assert_eq!(r.drain_notifications().count(), 0);
+        assert_eq!(r.transport_mut().sent[0].as_bytes()[1], 0x02);
+    }
+
+    #[test]
+    fn empty_receiver_slot_is_a_device_error() {
+        let mut t = MockTransport::new();
+        // verbatim: the Bolt receiver's answer to a ping at an empty slot
+        t.push_inbound(Frame::parse(&[0x10, 0x01, 0x8F, 0x00, 0x1E, 0x09, 0x00]).unwrap());
+        let mut r = DirectRequester::new(t, DeviceIndex(1));
+        assert!(matches!(
+            r.request(0, 1, &[0, 0, 0x5A]),
+            Err(RequestError::Device(0x09))
+        ));
     }
 
     #[test]

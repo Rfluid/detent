@@ -22,7 +22,7 @@ use detent_hidpp_proto::{Frame, MAX_FRAME_LEN, ReportId};
 use hidapi::{BusType, HidApi, HidDevice};
 
 use crate::Transport;
-use crate::discover::{Bus, DeviceInfo, LOGITECH_VENDOR, is_hidpp_long_collection};
+use crate::discover::{Bus, DeviceInfo, LOGITECH_VENDOR, is_hidpp_long_collection, is_receiver};
 
 pub struct HidapiTransport {
     dev: HidDevice,
@@ -117,6 +117,7 @@ pub fn enumerate() -> io::Result<Vec<DeviceInfo>> {
                 .serial_number()
                 .filter(|s| !s.is_empty())
                 .map(str::to_string),
+            receiver: is_receiver(u32::from(d.product_id())),
         })
         .collect();
     out.sort_by(|a, b| a.node.cmp(&b.node));

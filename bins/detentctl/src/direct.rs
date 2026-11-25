@@ -6,6 +6,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use detent_device::DirectRequester;
+use detent_device::receiver::{self, Paired};
 use detent_device::requester::error_name;
 use detent_hidpp_features::{RequestError, device_info, reprog_controls, root};
 use detent_hidpp_proto::{DeviceIndex, FeatureId};
@@ -18,11 +19,90 @@ use crate::names;
 
 pub type Dev = DirectRequester<OsTransport>;
 
-/// Pick a device: `sel` matches a node path (`/dev/hidraw10`), a node name (`hidraw10`)
-/// or a case-insensitive substring of the product name. Default: first device that
-/// answers HID++ 2.0 at the direct device index.
-pub fn open(sel: Option<&str>) -> Result<(DeviceInfo, Dev)> {
+/// One device to talk to: a node plus the index it answers at (0xFF direct, 1–6 behind a
+/// receiver, with the receiver's pairing info).
+#[derive(Debug, Clone)]
+pub struct Endpoint {
+    pub info: DeviceInfo,
+    pub index: DeviceIndex,
+    pub paired: Option<Paired>,
+}
+
+impl Endpoint {
+    /// The device's name: the receiver's pairing name for a slot, else the HID name.
+    pub fn name(&self) -> &str {
+        self.paired
+            .as_ref()
+            .and_then(|p| p.name.as_deref())
+            .unwrap_or(&self.info.name)
+    }
+
+    pub fn slot(&self) -> Option<u8> {
+        self.paired.as_ref().map(|p| p.slot)
+    }
+
+    /// Product id of the device itself (the wpid behind a receiver).
+    pub fn product(&self) -> u32 {
+        self.paired
+            .as_ref()
+            .map_or(self.info.product, |p| u32::from(p.wpid))
+    }
+
+    /// `/dev/hidraw10` or, behind a receiver, `/dev/hidraw10 #2`.
+    pub fn label(&self) -> String {
+        match self.slot() {
+            Some(s) => format!("{} #{s}", self.info.node.display()),
+            None => self.info.node.display().to_string(),
+        }
+    }
+
+    fn matches(&self, s: &str) -> bool {
+        let node = self.info.node.to_string_lossy();
+        node == s
+            || Path::new(&*node).file_name().is_some_and(|f| f == s)
+            || self.name().to_lowercase().contains(&s.to_lowercase())
+    }
+}
+
+/// Every Logitech device: direct nodes as they are, receivers expanded into their paired
+/// devices (Bolt pairing registers; read-only). A receiver whose pairings can't be read is
+/// listed as itself.
+pub fn endpoints() -> Result<Vec<Endpoint>> {
     let devs = discover::logitech().context("listing Logitech HID devices")?;
+    let mut out = Vec::new();
+    for info in devs {
+        let paired = if info.receiver {
+            OsTransport::open(&info.node)
+                .ok()
+                .and_then(|mut t| receiver::bolt_paired_all(&mut t).ok())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        if paired.is_empty() {
+            out.push(Endpoint {
+                info,
+                index: DeviceIndex::DIRECT,
+                paired: None,
+            });
+            continue;
+        }
+        for p in paired {
+            out.push(Endpoint {
+                info: info.clone(),
+                index: p.index(),
+                paired: Some(p),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Pick a device: `sel` matches a node path (`/dev/hidraw10`), a node name (`hidraw10`)
+/// or a case-insensitive substring of the device name. Default: first device that
+/// answers HID++ 2.0 (receiver slots at their index, everything else at 0xFF).
+pub fn open(sel: Option<&str>) -> Result<(Endpoint, Dev)> {
+    let devs = endpoints()?;
     if devs.is_empty() {
         return Err(Exit::new(
             exit::NOINPUT,
@@ -30,23 +110,15 @@ pub fn open(sel: Option<&str>) -> Result<(DeviceInfo, Dev)> {
         )
         .into());
     }
-    let candidates: Vec<DeviceInfo> = match sel {
-        Some(s) => devs
-            .into_iter()
-            .filter(|d| {
-                let node = d.node.to_string_lossy();
-                node == s
-                    || Path::new(&*node).file_name().is_some_and(|f| f == s)
-                    || d.name.to_lowercase().contains(&s.to_lowercase())
-            })
-            .collect(),
+    let candidates: Vec<Endpoint> = match sel {
+        Some(s) => devs.into_iter().filter(|d| d.matches(s)).collect(),
         None => devs,
     };
     let mut last_err = None;
-    for info in candidates {
-        match try_open(&info) {
-            Ok(dev) => return Ok((info, dev)),
-            Err(e) => last_err = Some(e.context(format!("{}", info.node.display()))),
+    for ep in candidates {
+        match try_open(&ep) {
+            Ok(dev) => return Ok((ep, dev)),
+            Err(e) => last_err = Some(e.context(ep.label())),
         }
     }
     Err(last_err.unwrap_or_else(|| {
@@ -65,7 +137,8 @@ const PERMISSION_HINT: &str = if cfg!(target_os = "linux") {
     "another program may hold the device exclusively (see docs/specs/transport.md)"
 };
 
-fn try_open(info: &DeviceInfo) -> Result<Dev> {
+fn try_open(ep: &Endpoint) -> Result<Dev> {
+    let info = &ep.info;
     let t = OsTransport::open(&info.node).map_err(|e| -> anyhow::Error {
         if e.kind() == std::io::ErrorKind::PermissionDenied {
             Exit::new(
@@ -80,8 +153,14 @@ fn try_open(info: &DeviceInfo) -> Result<Dev> {
             e.into()
         }
     })?;
-    let mut dev = DirectRequester::new(t, DeviceIndex::DIRECT);
-    let (major, minor) = root::protocol_version(&mut dev).map_err(req_err)?;
+    let mut dev = DirectRequester::new(t, ep.index);
+    let (major, minor) = root::protocol_version(&mut dev).map_err(|e| match e {
+        // The receiver answers with an error when nothing is connected at the slot.
+        RequestError::Device(_) if ep.slot().is_some() => {
+            anyhow::anyhow!("not connected (off, asleep or out of range)")
+        }
+        e => req_err(e),
+    })?;
     if major < 2 {
         bail!("speaks HID++ {major}.{minor}; only 2.0+ is supported");
     }
@@ -138,7 +217,7 @@ fn flag_names(flags: u8) -> Vec<&'static str> {
 }
 
 pub fn dump_features(sel: Option<&str>, json: bool) -> Result<()> {
-    let (info, mut dev) = open(sel)?;
+    let (ep, mut dev) = open(sel)?;
     let protocol = root::protocol_version(&mut dev).map_err(req_err)?;
     let name = device_info::name(&mut dev).ok();
     let kind = device_info::device_type(&mut dev).ok();
@@ -157,7 +236,7 @@ pub fn dump_features(sel: Option<&str>, json: bool) -> Result<()> {
     let mut features = features;
     features.sort_by_key(|f| f.index);
     let dump = FeatureDump {
-        node: info.node.display().to_string(),
+        node: ep.label(),
         name,
         kind,
         protocol,
@@ -170,7 +249,7 @@ pub fn dump_features(sel: Option<&str>, json: bool) -> Result<()> {
     }
     println!(
         "{} ({}) at {}  HID++ {}.{}",
-        dump.name.as_deref().unwrap_or(&info.name),
+        dump.name.as_deref().unwrap_or(ep.name()),
         dump.kind.unwrap_or("?"),
         dump.node,
         protocol.0,
@@ -200,7 +279,7 @@ pub fn dump_features(sel: Option<&str>, json: bool) -> Result<()> {
 /// Clear temporary diversion / raw XY on every control: the mouse behaves as with no
 /// software running. Persistent settings are not touched.
 pub fn reset(sel: Option<&str>, quiet: bool) -> Result<()> {
-    let (info, mut dev) = open(sel)?;
+    let (ep, mut dev) = open(sel)?;
     let controls = reprog_controls::controls(&mut dev).map_err(req_err)?;
     let mut n = 0;
     for c in controls.iter().filter(|c| c.divertable) {
@@ -216,7 +295,7 @@ pub fn reset(sel: Option<&str>, quiet: bool) -> Result<()> {
     if !quiet {
         println!(
             "{}: {n} control(s) restored to default reporting",
-            info.name
+            ep.name()
         );
     }
     Ok(())
@@ -293,12 +372,16 @@ pub fn set(sel: Option<&str>, path: &str, value: &str) -> Result<()> {
 
 /// One-shot state read straight from the device (used when the daemon isn't running).
 pub fn read_state(sel: Option<&str>) -> Result<detent_device::DeviceState> {
-    let (info, mut dev) = open(sel)?;
-    let node = info.node.display().to_string();
-    let identity = detent_device::state::identify(&mut dev, &node);
+    let (ep, mut dev) = open(sel)?;
+    let identity = detent_device::state::identify(&mut dev, &ep.label());
+    // Same identity the daemon uses (bins/detentd/src/device.rs): wpid + unit id behind a
+    // receiver, HID product + HID_UNIQ for a direct device.
     let id = detent_device::DeviceId {
-        product: info.product,
-        serial: info.uniq.clone().unwrap_or_default(),
+        product: ep.product(),
+        serial: match &ep.paired {
+            Some(p) => p.serial.clone(),
+            None => ep.info.uniq.clone().unwrap_or_default(),
+        },
     };
     let mut st = detent_device::DeviceState::new(id, identity, dev.features().clone());
     st.read_all(&mut dev);
@@ -325,13 +408,13 @@ struct ControlRow {
 }
 
 pub fn dump_controls(sel: Option<&str>, json: bool) -> Result<()> {
-    let (info, mut dev) = open(sel)?;
+    let (ep, mut dev) = open(sel)?;
     if dev
         .features()
         .index_of(FeatureId::REPROG_CONTROLS_V4)
         .is_none()
     {
-        bail!("{} has no ReprogControlsV4 (0x1B04)", info.name);
+        bail!("{} has no ReprogControlsV4 (0x1B04)", ep.name());
     }
     let controls = reprog_controls::controls(&mut dev).map_err(req_err)?;
     let mut rows = Vec::new();
@@ -359,12 +442,7 @@ pub fn dump_controls(sel: Option<&str>, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&rows)?);
         return Ok(());
     }
-    println!(
-        "{} at {}: {} controls\n",
-        info.name,
-        info.node.display(),
-        rows.len()
-    );
+    println!("{} at {}: {} controls\n", ep.name(), ep.label(), rows.len());
     println!("  cid     task    name                      div  pers virt rawXY  reporting");
     for r in &rows {
         let rep = match &r.reporting {

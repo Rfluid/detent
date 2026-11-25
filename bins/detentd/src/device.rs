@@ -8,6 +8,7 @@ use std::sync::mpsc::sync_channel;
 
 use anyhow::{Context, Result, bail};
 use detent_device::DirectRequester;
+use detent_device::receiver::Paired;
 use detent_device::state::{DeviceId, DeviceState, identify};
 use detent_hidpp_features::root;
 use detent_hidpp_proto::{DeviceIndex, FeatureId};
@@ -24,13 +25,35 @@ use crate::shared::{DeviceHandle, Shared, lock};
 use crate::uinput::Uinput;
 use crate::worker::{Link, Worker};
 
-/// The mouse's evdev node: `/sys/class/hidraw/hidrawN/device/input/input*/event*`.
-fn evdev_node(hidraw: &Path) -> Option<PathBuf> {
-    let name = hidraw.file_name()?;
-    let input_dir = Path::new("/sys/class/hidraw")
-        .join(name)
-        .join("device/input");
+/// What to attach: a hidraw node and the index the device answers at.
+pub struct Target {
+    pub info: DeviceInfo,
+    /// 0xFF direct; 1–6 a receiver slot.
+    pub index: DeviceIndex,
+    /// The receiver's pairing info (receiver slots only): the device's wpid and unit id.
+    pub paired: Option<Paired>,
+}
+
+impl Target {
+    pub fn direct(info: DeviceInfo) -> Self {
+        Self {
+            info,
+            index: DeviceIndex::DIRECT,
+            paired: None,
+        }
+    }
+
+    pub fn slot(&self) -> Option<u8> {
+        (self.index != DeviceIndex::DIRECT).then_some(self.index.0)
+    }
+}
+
+/// The first `event*` node under `<input dir>/input*/` that passes `keep`.
+fn first_event(input_dir: &Path, keep: impl Fn(&Path) -> bool) -> Option<PathBuf> {
     for input in std::fs::read_dir(input_dir).ok()?.flatten() {
+        if !keep(&input.path()) {
+            continue;
+        }
         for e in std::fs::read_dir(input.path()).ok()?.flatten() {
             let n = e.file_name();
             if n.to_string_lossy().starts_with("event") {
@@ -41,8 +64,52 @@ fn evdev_node(hidraw: &Path) -> Option<PathBuf> {
     None
 }
 
-fn open_evdev(hidraw: &Path) -> Option<RawDevice> {
-    let node = evdev_node(hidraw)?;
+/// Does `/sys/.../input/inputN` report relative X and Y (bits 0 and 1 of `capabilities/rel`)?
+fn has_rel_xy(input: &Path) -> bool {
+    std::fs::read_to_string(input.join("capabilities/rel"))
+        .ok()
+        .and_then(|s| {
+            let last = s.split_whitespace().last()?;
+            u64::from_str_radix(last, 16).ok()
+        })
+        .is_some_and(|bits| bits & 0x3 == 0x3)
+}
+
+/// The mouse's evdev node. Direct device: `/sys/class/hidraw/hidrawN/device/input/input*/event*`.
+/// Receiver: the HID++ interface has no input device; pointer events come from a sibling
+/// interface of the same USB device ("Logitech USB Receiver Mouse" on Bolt, interface 1),
+/// so take the sibling input that reports relative X/Y.
+fn evdev_node(hidraw: &Path, receiver: bool) -> Option<PathBuf> {
+    let hid = Path::new("/sys/class/hidraw")
+        .join(hidraw.file_name()?)
+        .join("device");
+    if !receiver {
+        return first_event(&hid.join("input"), |_| true);
+    }
+    let usb_dev = std::fs::canonicalize(&hid)
+        .ok()?
+        .parent()?
+        .parent()?
+        .to_path_buf();
+    for iface in std::fs::read_dir(usb_dev).ok()?.flatten() {
+        for hid_dev in std::fs::read_dir(iface.path())
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
+            if !hid_dev.file_name().to_string_lossy().starts_with("0003:") {
+                continue;
+            }
+            if let Some(ev) = first_event(&hid_dev.path().join("input"), has_rel_xy) {
+                return Some(ev);
+            }
+        }
+    }
+    None
+}
+
+fn open_evdev(hidraw: &Path, receiver: bool) -> Option<RawDevice> {
+    let node = evdev_node(hidraw, receiver)?;
     match RawDevice::open(&node) {
         Ok(d) => {
             let fl = fcntl_getfl(d.as_fd()).ok()?;
@@ -60,26 +127,45 @@ fn open_evdev(hidraw: &Path) -> Option<RawDevice> {
     }
 }
 
-/// Probe and attach. Errors mean "not a HID++ 2.0 device we can use" (or no access).
-pub fn attach(info: &DeviceInfo, shared: &Arc<Shared>) -> Result<()> {
+/// Stable identity. Receiver slots use the pairing info (wpid + unit id), direct devices
+/// the HID product and `HID_UNIQ`.
+fn device_id(target: &Target) -> DeviceId {
+    match &target.paired {
+        Some(p) => DeviceId {
+            product: u32::from(p.wpid),
+            serial: p.serial.clone(),
+        },
+        None => DeviceId {
+            product: target.info.product,
+            serial: target.info.uniq.clone().unwrap_or_default(),
+        },
+    }
+}
+
+/// Probe and attach. Errors mean "not a HID++ 2.0 device we can use" (or no access, or
+/// a receiver slot whose device is off).
+pub fn attach(target: &Target, shared: &Arc<Shared>) -> Result<()> {
+    let info = &target.info;
     let node = info.node.display().to_string();
     let t = HidrawTransport::open(&info.node).with_context(|| format!("open {node}"))?;
-    let mut dev = DirectRequester::new(t, DeviceIndex::DIRECT);
+    let mut dev = DirectRequester::new(t, target.index);
     let (major, _) = root::protocol_version(&mut dev).context("HID++ ping")?;
     if major < 2 {
         bail!("HID++ {major}.x device: unsupported");
     }
     dev.load_features().context("feature enumeration")?;
-    let identity = identify(&mut dev, &node);
-    let features = dev.features().clone();
-    let id = DeviceId {
-        product: info.product,
-        serial: info.uniq.clone().unwrap_or_default(),
+    // Shown to the user; `detentctl` labels receiver slots the same way.
+    let label = match target.slot() {
+        Some(s) => format!("{node} #{s}"),
+        None => node.clone(),
     };
-    let key = if id.serial.is_empty() {
-        node.clone()
-    } else {
-        format!("{:04X}:{}", id.product, id.serial)
+    let identity = identify(&mut dev, &label);
+    let features = dev.features().clone();
+    let id = device_id(target);
+    let key = match (id.serial.is_empty(), target.slot()) {
+        (false, _) => format!("{:04X}:{}", id.product, id.serial),
+        (true, Some(s)) => format!("{node}#{s}"),
+        (true, None) => node.clone(),
     };
     if lock(&shared.devices).contains_key(&key) {
         return Ok(());
@@ -96,7 +182,7 @@ pub fn attach(info: &DeviceInfo, shared: &Arc<Shared>) -> Result<()> {
         "creating the virtual input device (/dev/uinput): install the udev rules \
          (docs/user/quickstart.md)",
     )?;
-    let evdev = open_evdev(&info.node);
+    let evdev = open_evdev(&info.node, info.receiver);
     let wake = eventfd(0, EventfdFlags::NONBLOCK | EventfdFlags::CLOEXEC)?;
     let wake_dp = wake.try_clone()?;
     let (ring_tx, ring_rx) = rtrb::RingBuffer::new(64);
@@ -105,6 +191,7 @@ pub fn attach(info: &DeviceInfo, shared: &Arc<Shared>) -> Result<()> {
 
     let dp = DataPlane {
         hidraw,
+        device: target.index,
         evdev,
         uinput,
         wake: wake_dp,
@@ -127,7 +214,11 @@ pub fn attach(info: &DeviceInfo, shared: &Arc<Shared>) -> Result<()> {
 
     let worker = Worker::new(
         key.clone(),
-        Link { tx: ring_tx, wake },
+        Link {
+            tx: ring_tx,
+            wake,
+            device: target.index,
+        },
         rx,
         state,
         shared.clone(),
@@ -139,6 +230,7 @@ pub fn attach(info: &DeviceInfo, shared: &Arc<Shared>) -> Result<()> {
             tx,
             name: identity.name.clone(),
             node: node.clone(),
+            slot: target.slot(),
             stats,
         },
     );

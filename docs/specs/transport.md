@@ -4,7 +4,7 @@ status: current
 version: 0.1.0
 last_updated: 2026-11-25
 last_verified: 2026-11-25
-source_refs: ["crates/hidpp-transport/", "crates/device/src/requester.rs", "bins/detentctl/src/direct.rs"]
+source_refs: ["crates/hidpp-transport/", "crates/device/src/requester.rs", "crates/device/src/receiver.rs", "bins/detentctl/src/direct.rs"]
 owner: "@rfluid"
 tags: [spec, transport, hidpp, portability]
 ---
@@ -23,6 +23,7 @@ Decision and scope: [ADR 0010](../adr/0010-portability-seams.md). Frame layout: 
 | `discover::logitech() -> Vec<DeviceInfo>` | sysfs scan of `/sys/class/hidraw`, every Logitech node | hidapi enumeration, HID++ long-report collections only |
 | `DeviceInfo::node` | `/dev/hidrawN` | hidapi path (IOService path / device interface path) |
 | `DeviceInfo::uniq` | `HID_UNIQ` (BT address) | HID serial number string, if any |
+| `DeviceInfo::receiver` | Bolt PID + 0xFF00/0x0002 in the descriptor, not owned by `hid-logitech-dj`; the receiver's other interfaces are not listed | Bolt PID |
 
 Callers are generic over `Transport` (`DirectRequester<OsTransport>`): static dispatch, no
 `dyn`, a stack buffer per read. The daemon's data plane is Linux-only and keeps using
@@ -88,5 +89,6 @@ doesn't, and what the error says); write length requirements for the 20-byte lon
 ## Not covered yet
 
 - Hotplug off Linux (the daemon isn't there); `devices` lists what is present now.
-- Receivers (device index 1–6) off Linux are listed but, as on Linux, the CLI talks to the
-  direct index 0xFF only.
+- Receivers off Linux: `DeviceInfo::receiver` is set from the PID and `detentctl` expands
+  Bolt pairings into slots as on Linux ([hidpp.md](hidpp.md#receivers-logi-bolt)), but
+  that is only verified on Linux.

@@ -17,6 +17,8 @@ pub struct DeviceHandle {
     pub tx: SyncSender<WorkerMsg>,
     pub name: String,
     pub node: String,
+    /// Receiver slot (1–6); `None` for a direct device.
+    pub slot: Option<u8>,
     /// The data plane's counters (read-only here).
     pub stats: Arc<crate::dataplane::Stats>,
 }
@@ -27,6 +29,7 @@ impl DeviceHandle {
             id: id.to_string(),
             name: self.name.clone(),
             node: self.node.clone(),
+            slot: self.slot,
             frames: self.stats.frames.load(Ordering::Relaxed),
             dropped: self.stats.dropped_to_worker.load(Ordering::Relaxed)
                 + self.stats.dropped_out.load(Ordering::Relaxed),

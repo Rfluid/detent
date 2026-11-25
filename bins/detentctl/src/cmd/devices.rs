@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use detent_hidpp_features::haptics::waveform;
-use detent_hidpp_transport::discover;
 use detent_ipc::method;
 use detent_ipc::types::DeviceSummary;
 use serde::Serialize;
@@ -17,8 +16,12 @@ use crate::output::{human, state};
 #[derive(Debug, Serialize)]
 pub struct DeviceRow {
     pub node: String,
+    /// Receiver slot (1–6) for a device paired to a receiver at `node`; absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot: Option<u8>,
     pub bus: String,
     pub vendor: u32,
+    /// The device's product id (its wpid behind a receiver).
     pub product: u32,
     pub name: String,
     /// The daemon's device id when it has attached this node; `null` otherwise (or no daemon).
@@ -71,20 +74,21 @@ fn list(ctx: &Ctx) -> Result<()> {
         Some(mut d) => d.call_as(method::DEVICES_LIST, json!({}))?,
         None => Vec::new(),
     };
-    let rows: Vec<DeviceRow> = discover::logitech()?
+    let rows: Vec<DeviceRow> = direct::endpoints()?
         .into_iter()
-        .map(|d| {
-            let node = d.node.display().to_string();
+        .map(|ep| {
+            let node = ep.info.node.display().to_string();
             DeviceRow {
                 attached: attached
                     .iter()
-                    .find(|a| a.node == node)
+                    .find(|a| a.node == node && a.slot == ep.slot())
                     .map(|a| a.id.clone()),
+                slot: ep.slot(),
+                bus: format!("{:?}", ep.info.bus),
+                vendor: ep.info.vendor,
+                product: ep.product(),
+                name: ep.name().to_string(),
                 node,
-                bus: format!("{:?}", d.bus),
-                vendor: d.vendor,
-                product: d.product,
-                name: d.name,
             }
         })
         .collect();
