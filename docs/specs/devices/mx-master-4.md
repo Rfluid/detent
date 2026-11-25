@@ -2,9 +2,9 @@
 title: "Device: MX Master 4 (046D:B042, Bluetooth)"
 status: current
 version: 0.1.0
-last_updated: 2026-11-24
-last_verified: 2026-11-24
-source_refs: ["crates/hidpp-features/src/cid.rs", "crates/hidpp-features/src/haptics.rs", "docs/specs/devices/captures/"]
+last_updated: 2026-11-25
+last_verified: 2026-11-25
+source_refs: ["crates/hidpp-features/src/cid.rs", "crates/hidpp-features/src/haptics.rs", "crates/hidpp-features/src/hosts.rs", "docs/specs/devices/captures/"]
 owner: "@rfluid"
 tags: [spec, device, mx-master-4]
 ---
@@ -35,8 +35,8 @@ Matches the public dumps in [research/mx-master-4.md](../../research/mx-master-4
 | 11 | 0x19B0 | 0 | Haptics | read, config, play |
 | 12 | 0x19C0 | 0 | ForceSensingButton | not touched (writes are persistent) |
 | 13 | 0x1B04 | 6 | ReprogControlsV4 | read, temporary divert |
-| 14 | 0x1814 | 2 | ChangeHost | read only |
-| 15 | 0x1815 | 2 | HostsInfo | — |
+| 14 | 0x1814 | 2 | ChangeHost | read; switch on explicit request (⚠ switch not yet run on the device) |
+| 15 | 0x1815 | 2 | HostsInfo | read names; rename on explicit request (verified: names ≤ 24 bytes, any slot) |
 | 16 | 0x2250 | 1 | XyStats | — |
 | 17 | 0x2111 | 0 | SmartShiftEnhanced | read/write |
 | 18 | 0x2121 | 1 | HiResWheel | read; invert only |

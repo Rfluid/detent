@@ -54,7 +54,7 @@ Summary table in [specs/hidpp.md](../specs/hidpp.md); byte layouts in [hidpp-lay
 | Root 0x0000, FeatureSet 0x0001 | adopt | getFeature is big-endian (logiops has a dormant LE bug: **reject** that) |
 | DeviceFwInfo 0x0003, DeviceName 0x0005 | adopt | |
 | UnifiedBattery 0x1004 | adapt | charging byte uses the **kernel's** table (0 discharging, 1 charging, 2 slow, 3 full, 4 error); Solaar's older table rejected |
-| ChangeHost 0x1814 | adopt (read-only) | switching hosts disconnects the mouse: never written |
+| ChangeHost 0x1814 | adopt | switching disconnects the mouse: only on an explicit user action, never re-applied (2026-11-25) |
 | ReprogControlsV4 0x1B04 | adopt | "valid" bit per setting; remap 0 = keep; button event is the *set* of ≤ 4 held CIDs (diff consecutive sets); **temporary** divert only (persistent divert would leave buttons dead without Detent) |
 | WirelessDeviceStatus 0x1D4B | adopt | event 0 `[status, request, reason]`; `request == 1` → device lost diversion, re-apply (logiops waits ~100 ms) |
 | SmartShift Enhanced 0x2111 | adapt | fn 0/1/2; 0 = unchanged; MX4 quirk: torque only applies when the mode byte is written in the same request |
@@ -129,7 +129,7 @@ All names verified on the owner's Plasma 6.8.3 with `busctl --user` (no `qdbus` 
 Recorded in the specs named:
 
 1. swid **0xE**, long reports, 1 s timeout × 3 attempts, BUSY retry → `docs/specs/hidpp.md`.
-2. Never write 0x1D4B, 0x1814 (host switch), 0x19C0, persistent divert, or unknown features → `docs/specs/hidpp.md`.
+2. Never write 0x1D4B, 0x19C0, persistent divert, or unknown features; 0x1814 host switch and 0x1815 host names only on an explicit user action (owner, 2026-11-25) → `docs/specs/hidpp.md`.
 3. Wheel and thumbwheel are *not* diverted; layer bindings on them use evdev events during the grab → `docs/architecture/bindings.md`.
 4. Resync triggers and delays → `docs/architecture/device-state.md`.
 5. Gesture threshold in mm, owner choice 6 mm threshold mode → `docs/specs/config.md`.

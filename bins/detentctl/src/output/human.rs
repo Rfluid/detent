@@ -177,6 +177,33 @@ pub fn battery(st: &Style, b: &BatteryOut) {
     );
 }
 
+/// `hosts list`: one row per Easy-Switch slot, from the `hosts` section.
+pub fn hosts(st: &Style, h: &Value) {
+    let current = h["current"].as_u64();
+    let slots = h["slots"].as_array().map_or(&[][..], Vec::as_slice);
+    let body: Vec<Vec<String>> = slots
+        .iter()
+        .map(|s| {
+            let n = s["slot"].as_u64().unwrap_or(0);
+            let here = current == Some(n);
+            let mark = if here { st.green("●") } else { " ".into() };
+            let state = match (here, s["paired"].as_bool()) {
+                (true, _) => st.green("this computer"),
+                (false, Some(true)) => "paired".into(),
+                (false, Some(false)) => st.dim("empty"),
+                (false, None) => st.dim("?"),
+            };
+            let name = s["name"].as_str().filter(|n| !n.is_empty());
+            let name = name.map_or_else(|| st.dim("-"), str::to_string);
+            vec![format!("{mark} {}", n + 1), name, state]
+        })
+        .collect();
+    table(&["HOST", "NAME", "STATE"], &body, st);
+    if h["can_rename"].as_bool() == Some(false) && slots.iter().any(|s| !s["name"].is_null()) {
+        println!("{}", st.dim("(this device doesn't accept new host names)"));
+    }
+}
+
 pub fn settings(st: &Style, rows: &[SettingInfo]) {
     let body: Vec<Vec<String>> = rows
         .iter()

@@ -1,6 +1,6 @@
 //! Commands that talk to the mouse directly (no daemon needed): hidraw on Linux, hidapi on
-//! macOS and Windows (`OsTransport`, ADR 0010). `set` and `reset` write device settings;
-//! everything else only reads.
+//! macOS and Windows (`OsTransport`, ADR 0010). `set` and `reset` write device settings
+//! and `hosts` (Easy-Switch) switches and renames hosts; everything else only reads.
 
 use std::path::Path;
 
@@ -16,6 +16,8 @@ use serde::Serialize;
 
 use crate::exit::{self, Exit};
 use crate::names;
+
+pub mod hosts;
 
 pub type Dev = DirectRequester<OsTransport>;
 

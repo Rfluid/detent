@@ -50,6 +50,8 @@ impl NativePlugin {
                 "actions.invoke",
                 // menu items with `keys = "..."`
                 "input.emit",
+                // menu items with `action = "device.host"` (Easy-Switch)
+                "device.control",
                 // `app` context for per-application rings
                 "events.subscribe",
             ],

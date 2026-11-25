@@ -19,7 +19,7 @@ device commands follow `ratbagctl` and Solaar's CLI.
 Most commands talk to the running daemon (`detentd`) over the client IPC socket
 (docs/specs/ipc.md). These also work when the daemon isn't running, by talking to the
 mouse or reading the file directly: `devices`, `settings list|get|set` (without
-`--persist`), `bindings`, `config path|show|edit|check`, `reset`, `debug`.
+`--persist`), `hosts`, `bindings`, `config path|show|edit|check`, `reset`, `debug`.
 
 **macOS and Windows.** There is no daemon there yet (ADR 0010), so `detentctl` always talks
 to the mouse directly, over hidapi: `devices`, `devices info|battery`, `get`, `set`
@@ -58,6 +58,7 @@ detentctl actions [list|invoke]
 detentctl plugins [list|status|restart]
 detentctl events [TOPIC...] [-n N]           aliases: monitor, watch
 detentctl haptic [WAVEFORM] [--list]
+detentctl hosts [list|switch|rename]         Easy-Switch: paired computers (alias: host)
 detentctl reset                              give the buttons back (no daemon needed)
 detentctl debug features|controls            raw HID++ inspection (no daemon needed)
 detentctl completions <bash|zsh|fish|elvish|powershell>
@@ -128,6 +129,27 @@ detentctl sponsor [--open]                   GitHub Sponsors and Pix links (any 
   daemon).
 - `haptic [WAVEFORM]` plays a waveform (default `damp-state-change`). `haptic --list`
   lists the waveform names.
+
+### Easy-Switch hosts
+
+The computers the mouse is paired with (its 1-2-3 button), like Solaar's `change-host`
+and Logi Options+'s Easy-Switch view. Hosts are numbered as printed on the mouse.
+These work without the daemon too, by talking to the mouse directly.
+
+- `hosts` / `hosts list` (alias `host`): one row per slot with its stored name, `paired`
+  or `empty`, and `this computer` for the slot in use. Names come from the mouse (set by
+  Logi Options+, Solaar or `hosts rename`).
+- `hosts switch <1-3|next|prev>`: moves the mouse to that computer right away. It
+  disconnects from this one; press its Easy-Switch button to come back. `next` and `prev`
+  wrap around. Already there: nothing is sent.
+- `hosts rename <host> <name>` or `hosts rename <host> --this-host`: stores a name on the
+  mouse for that slot (this computer's short host name with `--this-host`). Detent never
+  renames anything on its own. The mouse is read back after the write and the stored
+  name is printed. Exits 65 if the device doesn't accept names or the name is too long.
+
+To switch from a button, bind `do = { device = "host", value = 2 }` (or `"next"`,
+`"prev"`). Plugins and radial items use the built-in action `device.host` with
+`{ "to": 2 }`.
 
 ### Bindings, actions, plugins, events
 
@@ -205,6 +227,9 @@ removed. The types are in `crates/ipc/src/types.rs` and `settings.rs`, and
 | `settings list` | `[{path, type: int\|bool\|choice, min?, max?, step?, values?, value, desired, pending, doc}]` |
 | `settings get` | the bare JSON value |
 | `settings set` | `{path, value, persisted, via: daemon\|direct, reported}` |
+| `hosts list` | `{count, current, enhanced, can_rename, slots[{slot, paired, name, name_max}]}` (`slot`, `current` 0-based) |
+| `hosts switch` | `{switched, from, to, via: daemon\|direct}` (1-based) |
+| `hosts rename` | the `hosts list` shape, as the device reports it after the write |
 | `bindings` | `[{profile, layer?, trigger, kind, action, params?}]` |
 | `plugins list` | `[{name, state, pid, restarts, last_error, dropped, caps, version, uptime_s}]` |
 | `actions list` | `[{name, doc, continuous, plugin}]` |

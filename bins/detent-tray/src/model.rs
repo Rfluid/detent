@@ -4,9 +4,25 @@
 
 use std::path::PathBuf;
 
+/// One Easy-Switch slot, for the "Switch to" rows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostView {
+    /// 1-based, as printed on the mouse.
+    pub number: u8,
+    pub name: Option<String>,
+    /// `Some(false)`: nothing paired there (the row is disabled).
+    pub paired: Option<bool>,
+    /// The slot this computer uses.
+    pub current: bool,
+}
+
 /// One attached device as the header and tooltip show it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceView {
+    /// The daemon's device id (`hosts.switch` targets it).
+    pub id: String,
+    /// Easy-Switch slots; empty when the device has none.
+    pub hosts: Vec<HostView>,
     pub name: String,
     /// `Bluetooth`, `USB`, ... (from sysfs); `None` when unknown.
     pub link: Option<String>,
@@ -188,6 +204,8 @@ pub(crate) mod tests {
 
     pub fn mx(battery: Option<u8>) -> DeviceView {
         DeviceView {
+            id: "B042:serial".into(),
+            hosts: Vec::new(),
             name: "MX Master 4".into(),
             link: Some("Bluetooth".into()),
             battery,
@@ -337,6 +355,8 @@ pub(crate) mod tests {
     fn details_and_first_line() {
         assert_eq!(device_detail(&mx(Some(85))), "Connected, Bluetooth, 85%");
         let bare = DeviceView {
+            id: "x".into(),
+            hosts: Vec::new(),
             name: "x".into(),
             link: None,
             battery: None,

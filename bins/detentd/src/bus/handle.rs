@@ -77,6 +77,9 @@ impl Bus {
                 if action == detent_bus::builtin::KEYS && !has(Capability::InputEmit) {
                     return deny("the `keys` action", Capability::InputEmit);
                 }
+                if action == detent_bus::builtin::DEVICE_HOST && !has(Capability::DeviceControl) {
+                    return deny("the `device.host` action", Capability::DeviceControl);
+                }
                 let trigger = format!("plugin:{name}");
                 if let Err(e) = shared.invoke_named(&action, &params_json, &trigger) {
                     warn!("plugin `{name}`: {e}");

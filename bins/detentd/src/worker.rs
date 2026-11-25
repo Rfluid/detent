@@ -13,19 +13,22 @@ use std::time::{Duration, Instant};
 use detent_config::CompiledConfig;
 use detent_config::schema::DeviceSettings;
 use detent_device::DeviceState;
-use detent_device::requester::{DEFAULT_RETRIES, DEFAULT_TIMEOUT, error_name};
+use detent_device::requester::error_name;
 use detent_engine::ControlOut;
 use detent_engine::action::DeviceCmd;
 use detent_hidpp_features::{
-    Feature, FeatureTable, RequestError, Requester, adjustable_dpi, haptics, reprog_controls,
-    smartshift, unified_battery,
+    Feature, RequestError, Requester, adjustable_dpi, haptics, reprog_controls, smartshift,
+    unified_battery,
 };
-use detent_hidpp_proto::{DeviceIndex, FeatureId, Frame, Kind, ReportId, SoftwareId, classify};
+use detent_hidpp_proto::{DeviceIndex, FeatureId, Frame};
 use tracing::{debug, info, warn};
 
 use crate::msg::{Cmd, FromDp, ToDp, WorkerMsg};
 use crate::shared::Shared;
+use ring::RingRequester;
 
+mod hosts;
+mod ring;
 mod settings;
 
 /// Wait after a reconnect before re-applying, so the kernel's own setup runs first.
@@ -47,99 +50,6 @@ impl Link {
             return;
         }
         let _ = rustix::io::write(&self.wake, &1u64.to_ne_bytes());
-    }
-}
-
-/// `Requester` over the data plane's ring. Messages that arrive while waiting for a
-/// response are kept in `backlog` for the worker loop.
-struct RingRequester<'a> {
-    link: &'a mut Link,
-    rx: &'a Receiver<WorkerMsg>,
-    backlog: &'a mut VecDeque<WorkerMsg>,
-    features: &'a FeatureTable,
-    gone: &'a mut Option<&'static str>,
-}
-
-impl RingRequester<'_> {
-    fn attempt(&mut self, req: &Frame, fi: u8, func: u8) -> Result<Option<Frame>, RequestError> {
-        self.link.send(ToDp::Send(*req));
-        let deadline = Instant::now() + DEFAULT_TIMEOUT;
-        loop {
-            let left = deadline.saturating_duration_since(Instant::now());
-            if left.is_zero() {
-                return Ok(None);
-            }
-            match self.rx.recv_timeout(left) {
-                Ok(WorkerMsg::Dp(FromDp::Response(f))) => match classify(&f, SoftwareId::DETENT) {
-                    Kind::Response if f.feature_index() == fi && f.function() == func => {
-                        return Ok(Some(f));
-                    }
-                    Kind::Error {
-                        feature_index,
-                        function,
-                        code,
-                    } if feature_index == fi && function == func => {
-                        return Err(RequestError::Device(code));
-                    }
-                    _ => {} // stale answer to an earlier, timed-out request
-                },
-                Ok(WorkerMsg::Dp(FromDp::Gone(r))) => {
-                    *self.gone = Some(r);
-                    return Err(RequestError::Io(std::io::Error::new(
-                        std::io::ErrorKind::NotConnected,
-                        r,
-                    )));
-                }
-                Ok(other) => self.backlog.push_back(other),
-                Err(RecvTimeoutError::Timeout) => return Ok(None),
-                Err(RecvTimeoutError::Disconnected) => {
-                    return Err(RequestError::Io(std::io::Error::new(
-                        std::io::ErrorKind::NotConnected,
-                        "data plane gone",
-                    )));
-                }
-            }
-        }
-    }
-}
-
-impl Requester for RingRequester<'_> {
-    fn feature_index(&self, id: FeatureId) -> Option<u8> {
-        if id == FeatureId::ROOT {
-            return Some(0);
-        }
-        self.features.index_of(id)
-    }
-
-    fn request(&mut self, fi: u8, func: u8, params: &[u8]) -> Result<Frame, RequestError> {
-        if self.gone.is_some() {
-            return Err(RequestError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                "device gone",
-            )));
-        }
-        let req = Frame::request_with(
-            ReportId::Long,
-            self.link.device,
-            fi,
-            func,
-            SoftwareId::DETENT,
-            params,
-        )
-        .map_err(|_| RequestError::Malformed)?;
-        let mut last = RequestError::Timeout;
-        for attempt in 0..=DEFAULT_RETRIES {
-            match self.attempt(&req, fi, func) {
-                Ok(Some(f)) => return Ok(f),
-                Ok(None) => last = RequestError::Timeout,
-                Err(RequestError::Device(0x08)) => {
-                    last = RequestError::Device(0x08);
-                    std::thread::sleep(Duration::from_millis(20 * (u64::from(attempt) + 1)));
-                }
-                Err(e) => return Err(e),
-            }
-        }
-        Err(last)
     }
 }
 
@@ -355,6 +265,11 @@ impl Worker {
     }
 
     fn on_device_cmd(&mut self, cmd: DeviceCmd) {
+        if let DeviceCmd::ChangeHost(t) = cmd {
+            // From a binding: the result only goes to the log.
+            let _ = self.switch_host(t);
+            return;
+        }
         let cfg = self.config();
         let cycle = self
             .device_settings(&cfg)
@@ -384,6 +299,7 @@ impl Worker {
                     smartshift::set(dev, Some(next), None, None)?;
                 }
                 DeviceCmd::HapticPulse { waveform, .. } => haptics::play(dev, waveform)?,
+                DeviceCmd::ChangeHost(_) => {} // handled above
             }
             if matches!(cmd, DeviceCmd::SetDpi(_) | DeviceCmd::CycleDpi) {
                 st.dpi
@@ -507,6 +423,10 @@ impl Worker {
                 intensity: 0,
             }),
             Cmd::Device(c) => self.on_device_cmd(c),
+            Cmd::Host { op, reply } => {
+                let r = self.on_host(op);
+                let _ = reply.try_send(r);
+            }
             Cmd::EmitKeys(k) => self.link.send(ToDp::EmitKeys(k)),
             Cmd::Lease(l) => self.link.send(ToDp::Lease(l)),
             Cmd::Shutdown => return false,

@@ -14,7 +14,7 @@ use tracing::{debug, info, warn};
 
 use crate::shared::Shared;
 
-mod handlers;
+pub(crate) mod handlers;
 
 pub fn socket_path() -> PathBuf {
     detent_ipc::socket_path()

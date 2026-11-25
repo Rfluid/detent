@@ -35,6 +35,12 @@ pub mod method {
     pub const DEVICE_UNSET: &str = "device.unset";
     pub const DEVICE_FEATURES: &str = "device.features";
     pub const DEVICE_RAW: &str = "device.raw";
+    /// Easy-Switch slots: `{count, current, enhanced, can_rename, slots: [...]}`.
+    pub const HOSTS_LIST: &str = "hosts.list";
+    /// `{to: "2" | "next" | "prev"}` → `{switched, from, to}`. The mouse disconnects.
+    pub const HOSTS_SWITCH: &str = "hosts.switch";
+    /// `{host: "2", name: "laptop"}` → the slots as the device now reports them.
+    pub const HOSTS_RENAME: &str = "hosts.rename";
     pub const HAPTIC_PLAY: &str = "haptic.play";
     pub const EVENTS_SUBSCRIBE: &str = "events.subscribe";
     pub const CONFIG_RELOAD: &str = "config.reload";
@@ -63,7 +69,7 @@ pub mod code {
 
 /// Event topics published on `events.subscribe`.
 pub const TOPICS: &[&str] = &[
-    "action", "exec", "link", "config", "profile", "context", "plugin", "remap", "setting",
+    "action", "exec", "link", "config", "profile", "context", "plugin", "remap", "setting", "host",
 ];
 
 /// `$XDG_RUNTIME_DIR/detent` (falls back to `/run/user/<uid>/detent`).

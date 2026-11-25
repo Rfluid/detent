@@ -2,7 +2,7 @@
 title: "HID++ 2.0 layouts: device info, name, battery, hosts, wireless status"
 status: current
 version: 0.1.0
-last_updated: 2026-11-24
+last_updated: 2026-11-25
 last_verified: 2026-11-23
 source_refs: []
 owner: "@rfluid"
@@ -116,10 +116,12 @@ input features (sections 7, 9-13) in [hidpp-layouts-input.md](hidpp-layouts-inpu
 - Sources: L `ChangeHost.h/.cpp` (function numbers, no-response send, and it emulates
   InvalidArgument when host >= count). S-st L1295-1318 (`no_reply: True`, `persist = False`,
   host count/current read from fn0 bytes 0-1).
-- **Verdict: adopt.**
+- **Verdict: adopt** (implemented 2026-11-25 in `crates/hidpp-features/src/hosts.rs`, on
+  explicit user action only; see docs/specs/hidpp.md "Easy-Switch").
   - Send setCurrentHost fire-and-forget. Don't wait for a reply.
   - Validate host < numHosts locally.
   - Never persist or re-apply it on reconnect. Solaar marks persisting it as harmful.
+  - `prev` must wrap: logiops' `current - 1` from host 0 becomes 255 and is rejected.
 
 0x1815 (read side only):
 
@@ -133,8 +135,13 @@ input features (sections 7, 9-13) in [hidpp-layouts-input.md](hidpp-layouts-inpu
 - Source: S-h20 L2064-2112.
 - Solaar **automatically rewrites the current host's name on the device** to the local hostname
   (S-h20 L2083-2087). **Verdict: reject that behaviour.**
-  - Don't write to the device implicitly. Expose writes only as an explicit user action, if ever.
+  - Don't write to the device implicitly. Writes happen only on `detentctl hosts rename`
+    (owner decision 2026-11-25), in 14-byte chunks at offsets 0, 14, ... (Solaar
+    `set_host_name`: fn 4 `[host, offset, bytes]`, no length byte, no terminator).
   - Reading names is fine.
+  - Verified on the MX4 (2026-11-25): caps bit0 and bit1 set, `nameMaxLen` 24, fn 4
+    accepts any slot, a shorter name replaces the stored one completely. Still unknown:
+    fn 1 bytes 2-3.
 - Bytes 1-3 of fn1 (bus type, page count?) are **unverified**.
 
 ## 8. WirelessDeviceStatus 0x1D4B

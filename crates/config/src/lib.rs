@@ -136,6 +136,31 @@ mod tests {
     }
 
     #[test]
+    fn host_switch_bindings() {
+        use detent_engine::action::{DeviceCmd, HostTarget};
+        let host = |v: &str| {
+            let text = format!("[[bind]]\nwhen = \"thumb\"\ndo = {{ device = \"host\"{v} }}\n");
+            super::load(&text)
+                .map(|c| {
+                    c.engine.profiles[0]
+                        .bindings
+                        .lookup(LayerId::BASE, slot::THUMB, Edge::Press)
+                })
+                .map_err(|e| e.to_string())
+        };
+        let cmd = |t| Ok(Action::Device(DeviceCmd::ChangeHost(t)));
+        assert_eq!(host(", value = 2"), cmd(HostTarget::Slot(1)));
+        assert_eq!(host(", value = \"next\""), cmd(HostTarget::Next));
+        assert_eq!(host(", value = \"prev\""), cmd(HostTarget::Prev));
+        for bad in ["", ", value = 0", ", value = \"left\"", ", value = true"] {
+            assert!(
+                host(bad).unwrap_err().contains("device = \"host\""),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
     fn gesture_haptic_values() {
         let haptic = |v: &str| {
             super::load(&format!("[gesture]\nhaptic = {v}\n"))

@@ -12,6 +12,8 @@ use crate::msg::{Cmd, WorkerMsg};
 use crate::persist;
 use crate::shared::{Shared, lock};
 
+pub mod hosts;
+
 const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
 
 type RpcResult = Result<Value, (i32, String)>;
@@ -208,6 +210,9 @@ pub fn handle(shared: &Arc<Shared>, m: &str, params: &Value) -> RpcResult {
                 .map_err(|_| (code::DEVICE, "device disconnected".to_string()))?;
             Ok(json!("ok"))
         }
+        method::HOSTS_LIST | method::HOSTS_SWITCH | method::HOSTS_RENAME => {
+            hosts::handle(shared, m, params)
+        }
         method::REMAP_GET => to_json(&RemapState {
             enabled: shared.remap_enabled(),
             changed: false,
@@ -297,6 +302,21 @@ mod tests {
         assert_eq!(
             handle(&s, "nope", &json!({})).unwrap_err().0,
             code::METHOD_NOT_FOUND
+        );
+        for m in [
+            method::HOSTS_LIST,
+            method::HOSTS_SWITCH,
+            method::HOSTS_RENAME,
+        ] {
+            assert_eq!(
+                handle(&s, m, &json!({"to": "2"})).unwrap_err().0,
+                code::DEVICE
+            );
+        }
+        assert!(hosts::parse_target("2").is_ok());
+        assert_eq!(
+            hosts::parse_target("0").unwrap_err().0,
+            code::INVALID_PARAMS
         );
         let b = handle(&s, method::BINDINGS_LIST, &json!({})).unwrap();
         assert!(b.as_array().is_some_and(|a| !a.is_empty()));

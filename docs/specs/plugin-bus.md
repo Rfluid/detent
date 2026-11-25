@@ -4,7 +4,7 @@ status: current
 version: 0.2.0
 last_updated: 2026-11-25
 last_verified: 2026-11-25
-source_refs: ["crates/bus/src/lib.rs", "crates/plugin-sdk/src/lib.rs", "crates/engine/src/leases.rs"]
+source_refs: ["crates/bus/src/lib.rs", "crates/plugin-sdk/src/lib.rs", "crates/engine/src/leases.rs", "bins/detentd/src/bus/handle.rs"]
 owner: "@rfluid"
 tags: [spec, plugins, protocol]
 ---
@@ -73,6 +73,7 @@ Callable with `Invoke` (cap `ActionsInvoke`), no plugin prefix:
 |---|---|---|
 | `exec` | `{ "cmd": "spectacle -r" }` | |
 | `keys` | `{ "keys": "Ctrl+C" }` (same names as config `keys`) | `InputEmit` |
+| `device.host` | `{ "to": 2 }` (1-based), `{ "to": "next" }` or `{ "to": "prev" }`: Easy-Switch; the mouse leaves this computer | `DeviceControl` |
 
 ## Supervision
 

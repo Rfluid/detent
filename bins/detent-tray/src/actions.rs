@@ -116,6 +116,18 @@ fn reload(socket: &Path) {
     }
 }
 
+fn switch_host(socket: &Path, device: &str, host: u8) {
+    let r = Client::connect_to(socket).and_then(|mut c| {
+        c.call(
+            method::HOSTS_SWITCH,
+            json!({ "device": device, "to": host.to_string() }),
+        )
+    });
+    if let Err(e) = r {
+        ipc_error("Switching host", &e);
+    }
+}
+
 fn systemctl(verb: &str) {
     let r = Command::new("systemctl")
         .args(["--user", verb, UNIT])
@@ -231,6 +243,7 @@ pub fn run(rx: Receiver<Action>, socket: PathBuf, kick: Sender<Kick>, handle: Ha
             Action::OpenConfig(p) => open_config(&p),
             Action::ViewLogs => view_logs(),
             Action::OpenUrl(u) => platform::open_url(u),
+            Action::SwitchHost { device, host } => switch_host(&socket, &device, host),
             Action::CheckUpdates => {
                 let u = check_updates(true, &load_settings());
                 handle.update(|t| t.snap.update = u);

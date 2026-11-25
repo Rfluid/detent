@@ -20,7 +20,20 @@ pub enum DeviceCmd {
     SetDpi(u16),
     CycleDpi,
     ToggleSmartShift,
-    HapticPulse { waveform: u8, intensity: u8 },
+    HapticPulse {
+        waveform: u8,
+        intensity: u8,
+    },
+    /// Easy-Switch: move the mouse to another host (it disconnects from this one).
+    ChangeHost(HostTarget),
+}
+
+/// Easy-Switch slot to move to: 0-based, or relative to the current one (wrapping).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostTarget {
+    Slot(u8),
+    Next,
+    Prev,
 }
 
 /// Index into the control plane's table of exec commands (spawning never happens here).

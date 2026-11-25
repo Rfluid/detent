@@ -19,7 +19,7 @@ tags: [context]
 |---|---|---|
 | `detent-hidpp-proto` | `Frame`, `ReportId`, `SoftwareId::{KERNEL, DETENT}`, `classify() → Kind`, `FeatureId` | yes |
 | `detent-hidpp-transport` | `Transport` trait, `OsTransport` (`HidrawTransport` on Linux, `HidapiTransport` on macOS/Windows), `MockTransport`, `discover::logitech() → DeviceInfo` | yes (I/O) |
-| `detent-hidpp-features` | `Feature` trait, `Requester` trait, `FeatureTable`, `root::get_feature`, `feature_set::enumerate`, per-feature `State` | no |
+| `detent-hidpp-features` | `Feature` trait, `Requester` trait (`request`, no-reply `send`), `FeatureTable`, `root::get_feature`, `feature_set::enumerate`, per-feature `State`, `hosts` (Easy-Switch 0x1814/0x1815: read, `switch`, `rename`) | no |
 | `detent-device` | `DeviceState`, `Section<T>` (desired/reported/generation), `reconcile::plan`, `receiver` (Bolt pairings by slot, HID++ 1.0 register reads), `requester::send_retrying` | no |
 | `detent-engine` | `Action` (Copy enum), `BindingTable::lookup`, `ModMask`/`LayerMap`, `LeaseTable`; `Engine` in `engine.rs` + `engine/{controls,evdev,swipe}.rs`. No runtime dependencies (ADR 0008) | yes |
 | `detent-config` | `schema::Config`, `Trigger::parse`, `NativePlugin`, `parse()`, `keys` (Detent-owned key-name table, no `evdev`) | compile time |
@@ -27,7 +27,7 @@ tags: [context]
 | `detent-ipc` | JSON-RPC `Client`, `method::*`, `code::*`, `types::Status/RemapState/...`, `settings::SETTINGS` (settable-path catalogue), `platform` (`DAEMON_SUPPORTED`, the "not yet supported on <OS>" message) | no |
 | `detent-update` | `check`, `fetch_latest`, `compare`, `Settings` (`[update]` in tray.toml), `find_token` (gh, then file; only on the anonymous rate limit), `assets` (target → release asset name); GitHub Releases over ureq/rustls. Also `sponsor` (`SPONSOR_URL`, `PIX_URL`, `nudge_due`/`record_first_run`), `state::State` (`$XDG_STATE_HOME/detent/state.json`: `first_run`, `sponsor_nudge_done`; tolerant load, atomic save) and `SponsorSettings` (`[sponsor] nudge`) | no |
 | `detent-plugin` | `Plugin` trait, `Context`, `ActionCall`, `run`, `connect` | no |
-| `detentd` | `app.rs` (startup, hotplug, shutdown), `receivers.rs` (attach receiver slots, watch for paired devices waking up), `dataplane.rs`, `worker.rs`, `dispatch.rs`, `bus.rs` + `bus/{handle,supervisor,sink}.rs`, `ipc.rs`, `config_watch.rs`, `persist.rs`, `uinput.rs`, `device.rs` | data plane |
+| `detentd` | `app.rs` (startup, hotplug, shutdown), `receivers.rs` (attach receiver slots, watch for paired devices waking up), `dataplane.rs`, `worker.rs` + `worker/{ring,settings,hosts}.rs`, `dispatch.rs`, `bus.rs` + `bus/{handle,supervisor,sink}.rs`, `ipc.rs`, `config_watch.rs`, `persist.rs`, `uinput.rs`, `device.rs` | data plane |
 | `detentctl` | `cli.rs` (clap tree), `cmd/<group>.rs` (logic), `output/` (human printers), `exit.rs` (sysexits), `direct.rs` (no-daemon device access); reference docs/user/cli.md | |
 | `detent-tray` | `model.rs` (Snapshot → state, icon, tooltip), `menu.rs` (pure menu model), `sni.rs` (ksni), `poll.rs` (IPC + events), `actions.rs`, `platform.rs`, `sponsor.rs` (one-time sponsor notification on its own thread), `icons.rs` (generates packaging/icons); an IPC client, not a plugin (ADR 0009) | |
 | `detent-plugin-kde` | `actions.rs` (verified shortcut names), `dbus.rs` (zbus thread, KWin script) | |
@@ -70,7 +70,8 @@ All of it runs on the owner's machine as a systemd user service:
   policy, leases + escape chord); zero-alloc test and criterion benches.
 - `detent-config`: compiler to engine tables, key names, profiles.
 - `detentctl`: noun-verb tree (status, enable/disable, daemon, logs, config, devices,
-  settings, bindings, actions, plugins, events, haptic, reset, debug, completions, version,
+  settings, hosts (Easy-Switch list/switch/rename), bindings, actions, plugins, events,
+  haptic, reset, debug, completions, version,
   update check, sponsor);
   `--json` everywhere; works without the daemon where possible. Remap pause: `Shared::active`
   (data-plane view, bindings stripped) vs `Shared::config` (everything else).

@@ -37,6 +37,7 @@ One line per entry. Agents append after each task that produced new learning.
 - [2026-11-25-mx4-bt-report-descriptor](facts/2026-11-25-mx4-bt-report-descriptor.md): MX4 over BT: HID++ only on usage page 0xFF43 / usage 0x0202, report 0x11 (no 0x10 short reports); also a standard HID haptics collection (page 0x0E, reports 0x3C/0x3D)
 - [2026-11-25-cross-check-c-build-scripts](facts/2026-11-25-cross-check-c-build-scripts.md): `cargo check --target {aarch64-apple-darwin,x86_64-pc-windows-msvc}` from Linux works if the C build scripts (`ring`, hidapi's macOS backend) are overridden with `--config target.<t>.<links>...`; never override hidapi on Windows
 - [2026-11-25-notify-rust-close-reason](facts/2026-11-25-notify-rust-close-reason.md): notify-rust 4.17's `wait_for_action` reports every close as `"__closed"`; for the reason (2 = dismissed by the user) use `zbus::block_on(handle.wait_for_action_async(..))`
+- [2026-11-25-easy-switch-prior-art](facts/2026-11-25-easy-switch-prior-art.md): 0x1814 setCurrentHost has no reply, never persist it, wrap `prev`; 0x1815 layout (Solaar's) verified on the MX4: names ≤ 24 bytes, any slot renamable, shorter name replaces fully; a real switch to another slot not yet run
 
 - [2026-11-25-bolt-receiver](facts/2026-11-25-bolt-receiver.md): Bolt C548 on Linux 7.3 = hid-generic (no dj), HID++ on interface 2, MX4 at slot 2 (key B042:A204BE6C), pairing/name registers, 0x1D4B on power-on, transient EPIPE + spurious first error (retry)
 

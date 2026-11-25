@@ -71,10 +71,28 @@ pub enum Cmd {
     Haptic(u8),
     /// A device command from a plugin (DPI, SmartShift).
     Device(detent_engine::action::DeviceCmd),
+    /// Easy-Switch: list, switch or rename hosts; reply with JSON or an IPC error
+    /// `(code, message)`.
+    Host {
+        op: HostOp,
+        reply: SyncSender<Result<serde_json::Value, (i32, String)>>,
+    },
     /// Tap a key chord on the virtual keyboard.
     EmitKeys(detent_engine::action::KeyChord),
     Lease(detent_engine::engine::Lease),
     Shutdown,
+}
+
+/// What `Cmd::Host` asks for. Slots are 0-based.
+#[derive(Debug)]
+pub enum HostOp {
+    /// Re-read the slots (names, paired, current).
+    List,
+    Switch(detent_engine::action::HostTarget),
+    Rename {
+        slot: u8,
+        name: String,
+    },
 }
 
 #[derive(Debug)]
