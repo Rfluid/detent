@@ -1,0 +1,118 @@
+---
+title: HID++ 2.0 notes
+status: current
+version: 0.2.0
+last_updated: 2026-11-23
+last_verified: 2026-11-23
+source_refs: ["crates/hidpp-proto/", "crates/hidpp-features/", "crates/device/src/requester.rs"]
+owner: "@rfluid"
+tags: [spec, hidpp, protocol]
+---
+
+# HID++ 2.0 notes
+
+What Detent relies on. Facts come from prior art ([research/prior-art.md](../research/prior-art.md),
+byte layouts in [research/hidpp-layouts.md](../research/hidpp-layouts.md)) and were checked
+on the owner's MX Master 4 ([devices/mx-master-4.md](devices/mx-master-4.md)). Anything
+still marked ⚠ is unverified.
+
+## Frames
+
+| Report | ID | Length | Params |
+|---|---|---|---|
+| Short | `0x10` | 7 | 3 |
+| Long | `0x11` | 20 | 16 |
+| Very long | `0x12` | 64 | 60 |
+
+```
+[report id][device index][feature index][fn<<4 | swid][params...]
+```
+
+- **Device index**: `0xFF` for direct connections (Bluetooth, USB cable); `1..=6` behind a
+  Bolt/Unifying receiver. Direct devices sometimes answer with `0x00`; accept both.
+- **swid** (4 bits): echoed in responses. `0` = notification. Taken: kernel 1, logiops 2/3,
+  OpenRGB 7, libratbag 8, LGSTrayEx A, Solaar B, G HUB D, firmware F. **Detent uses `0xE`.**
+- **Errors**: feature index `0xFF` (2.0) or `0x8F` (1.0): `[rid, dev, 0xFF, orig_feat_idx, orig_fn_swid, code]`.
+  Codes: 1 unknown, 2 invalid argument, 3 out of range, 4 hardware, 5 internal, 6 invalid
+  feature index, 7 invalid function, 8 busy, 9 unsupported.
+- hidraw also delivers the mouse's normal input reports; anything that isn't an HID++
+  report ID is skipped. Every opener of the hidraw node receives every report.
+
+## Requests
+
+- Always **long** reports (Bluetooth devices may not accept short ones).
+- One request in flight per device. Match: same feature index, function and swid (or an
+  error report naming them).
+- Timeout **1 s per attempt, 3 attempts** on timeout; BUSY (0x08) is retried with a short
+  backoff; other device errors fail immediately. (Kernel: 5 s, BUSY only; logiops saw MX4
+  init fail at 500 ms.)
+- Measured on the owner's device over Bluetooth: a full `dump-features` (≈ 60 requests)
+  takes ≈ 1.3 s, i.e. ≈ 20 ms per round trip.
+
+## Hard safety rules
+
+Never send:
+- any request on the **0x1D4B** index (the kernel treats any report there as "device
+  connected" and reruns its setup);
+- **0x1814** setCurrentHost (moves the mouse to another computer);
+- **0x19C0** writes (persistent force-button calibration);
+- **persistent** diversion bits in setCidReporting (buttons would stay dead without Detent);
+- anything to a feature not listed below, or to a hidden/engineering feature.
+
+## Discovery
+
+1. Root (`0x0000`, index 0) fn 1: protocol version + ping byte echo.
+2. Root fn 0 `getFeature(id BE)` → `(index, flags, version)`. Index 0 = not supported.
+3. FeatureSet (`0x0001`) fn 0 `getCount`, fn 1 `getFeatureId(i)` → full table. Flags:
+   0x80 obsolete, 0x40 hidden, 0x20 engineering.
+
+## Features used
+
+| Feature | ID | Use | Status |
+|---|---|---|---|
+| Root / FeatureSet | `0x0000` / `0x0001` | discovery | verified |
+| Device FW info | `0x0003` | firmware versions | verified |
+| Device name/type | `0x0005` | name | verified |
+| Unified battery | `0x1004` | battery | verified (charging byte: kernel table) |
+| Change host | `0x1814` | Easy-Switch state (read only) | verified |
+| Reprog controls v4 | `0x1B04` (v6 on MX4) | divert buttons, raw XY | verified (CIDs below) |
+| Wireless device status | `0x1D4B` | reconnect notification | layout from prior art; event on device ⚠ (Phase 2) |
+| SmartShift enhanced | `0x2111` | wheel mode, auto-shift, torque | verified (MX4 has no 0x2110) |
+| Hi-res wheel | `0x2121` | resolution, invert | verified (read) |
+| Thumbwheel | `0x2150` | invert | verified (read) |
+| Adjustable DPI | `0x2201` | DPI | verified (MX4 has no 0x2202) |
+| Haptics | `0x19B0` | enable, intensity, play waveform | verified (read) |
+| Force sensing button | `0x19C0` | — | never written |
+
+## Reprog controls v4 (`0x1B04`)
+
+- fn 0 `getCount`; fn 1 `getCidInfo(i)` → `cid u16, tid u16, flags u8, pos, group, gmask, flags2`.
+  flags: 0x20 divertable, 0x40 persistently divertable, 0x80 virtual. flags2: 0x01 raw XY,
+  0x02 force raw XY, 0x08 raw wheel.
+- fn 2 `getCidReporting(cid)` → `cid u16, report u8, remap u16, report2 u8`; fn 3
+  `setCidReporting(cid, report, remap, ...)`. `report`: bit0 divert / bit1 valid, bit2
+  persist / bit3 valid, bit4 rawXY / bit5 valid, bit6 forceRawXY / bit7 valid. Only bits whose
+  valid bit is set are applied; remap 0 = unchanged.
+- Notifications: event 0 = the set of up to 4 diverted CIDs **currently held** (diff
+  consecutive sets for press/release); event 1 = raw XY `dx i16, dy i16` (BE).
+- **Diversion is volatile**: lost on sleep, reconnect and host switch. Re-applied on resync.
+- Left/right click are **not divertable** on the MX Master 4 (verified).
+
+## MX Master 4 controls
+
+See [devices/mx-master-4.md](devices/mx-master-4.md#controls-0x1b04-v6).
+
+## Haptics (`0x19B0`)
+
+- fn 0 capabilities: params bytes 4..8 = u32 BE waveform bitmap.
+- fn 1 config: `flags (bit0 enabled, bit1 battery saving), intensity 0..=100, levels`.
+- fn 2 set config `[flags, intensity, 0]` (persistent on the device, like Options+).
+- fn 4 play `[waveform, 0, 0]`: one-shot, not stored; safe every ≥ 12 ms.
+- Waveforms: 0x00–0x0E and 0x1B (names in `crates/hidpp-features/src/haptics.rs`).
+
+## Coexistence with the kernel driver
+
+`hid-logitech-hidpp` binds B042, uses swid 1, enables hi-res scrolling via 0x2121 on every
+connect, and watches 0x1D4B. Detent ignores `Foreign` frames, never diverts the wheel or
+thumbwheel (layer bindings read them from evdev during a grab), and re-applies its own
+settings ~300 ms after a reconnect so the kernel's setup runs first.

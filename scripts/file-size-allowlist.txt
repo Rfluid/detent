@@ -1,0 +1,4 @@
+# Files allowed over the size cap (scripts/check-file-size.sh).
+# Format: <max lines> <path>. Caps only go down: shrink a file, then lower or
+# delete its entry. Never add new files here; split them instead.
+# Empty since 2026-11-24 (ADR 0008): every file is within the default cap.

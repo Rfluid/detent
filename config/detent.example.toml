@@ -1,0 +1,120 @@
+# Detent example configuration.
+# Copy to ~/.config/detent/config.toml. Reference: docs/specs/config.md
+# This file is parsed by a unit test (crates/config), so it must always stay valid.
+
+[daemon]
+conflict_policy = "warn"   # warn | refuse | ignore  (Solaar / logiops / JuhRadial running)
+max_lease_ms = 10000       # longest a plugin may own input (radial menu, ...)
+
+[gesture]
+threshold_mm = 6           # hold gesture and move this far (on the desk) to swipe
+haptic = true              # pulse when a gesture resolves (any direction, diagonal or tap);
+                           # true = damp-state-change, false, or a waveform name
+
+# ── Device settings ─────────────────────────────────────────────────────────
+# Optional: anything set here is applied on every connect. Omitted = left as is.
+# `detentctl get` shows current values; `detentctl set dpi 1600 --persist` writes here.
+[device."MX Master 4"]
+# dpi = 1600
+# dpi_cycle = [800, 1600, 3200]
+# smartshift = { mode = "ratchet", auto_threshold = 12 }
+# haptics = { enabled = true, intensity = 60 }
+# thumbwheel = { invert = true }   # default: inverted (natural); set false for the device's own direction
+
+# ── Bindings ────────────────────────────────────────────────────────────────
+# Trigger grammar: `control`, `control.edge`, `mod + control`, `x.hold(300ms)`, ...
+
+[[bind]]
+when = "thumb.press"
+do = { action = "radial.open", menu = "main" }
+
+[[bind]]
+when = "gesture + left"          # chord: gesture must be pressed first
+do = { exec = "spectacle -r" }
+
+# Gesture button: press = 4-finger touchpad swipe up (Overview, again → Grid).
+[[bind]]
+when = "gesture.tap"
+do = { action = "kde.overview.up" }
+
+# ── Layers: active while `hold` is held ─────────────────────────────────────
+# Hold the gesture button and move: down = 4-finger swipe down, up = maximize,
+# left = next desktop, right = previous desktop. Diagonals do nothing.
+[layer.gesture]
+hold = "gesture"
+"swipe.up" = { action = "kde.window.maximize" }
+"swipe.down" = { action = "kde.overview.down" }
+"swipe.left" = { action = "kde.desktop.next" }
+"swipe.right" = { action = "kde.desktop.prev" }
+right = { keys = "PlayPause" }
+"wheel.up" = { keys = "Ctrl+Tab" }
+"wheel.down" = { keys = "Ctrl+Shift+Tab" } # gitleaks:allow (a key combo, not a secret)
+thumbwheel = { action = "kde.volume" }
+
+# ── Native plugins (shipped with Detent; no `exec` needed) ──────────────────
+[plugins.kde]
+enable = true
+osd = true                       # plugin-owned setting: show Plasma OSD feedback
+
+[plugins.radial]
+enable = true
+# Like the Actions Ring: the ring opens around the cursor; hover a bubble and click it, or
+# hold the thumb panel and release it on a bubble. Esc / right click / the centre close.
+size = "medium"                 # small | medium | large   (or radius = <px>)
+theme = "system"                 # system (follows Plasma's light/dark) | light | dark
+labels = "hover"                 # tooltip after hovering tooltip_ms | never | always
+tooltip_ms = 500
+haptic_ticks = true
+# colors = { accent = "#814efa", bubble = "#f3f0fff2" }   # override any theme colour
+
+# Up to 8 bubbles, clockwise from 12 o'clock. Each item has a `label`, optionally something
+# to show (icon = theme icon name or file, image = photo filling the bubble, text = short
+# text; without one, an icon is chosen from the action: Ctrl+C → edit-copy, ...) and one
+# action: action | exec | keys | app | open | steps (macro) | items (folder) | adjust.
+# `adjust` = a value set with the wheel: hover the bubble (or click it to pin), scroll the
+# wheel (step %) or the thumbwheel (fine_step %); middle click mutes.
+[plugins.radial.menus.main]
+items = [
+  { label = "Volume",     adjust = "kde.volume", step = 2, fine_step = 1 },
+  { label = "Screenshot", icon = "camera-photo",         exec = "spectacle -r" },
+  { label = "Terminal",   action = "kde.terminal" },  # the default terminal (Konsole if unset)
+  { label = "Copy",       icon = "edit-copy",            keys = "Ctrl+C" },
+  { label = "Paste",      icon = "edit-paste",           keys = "Ctrl+V" },
+  { label = "Play/Pause", icon = "media-playback-start", keys = "PlayPause" },
+  { app = "org.kde.konsole" },                               # name + icon from the desktop file
+  { label = "More", items = [                                # folder: up to 9, centre = back
+      { label = "Select all + copy", icon = "edit-select-all",
+        steps = [{ keys = "Ctrl+A" }, { delay_ms = 30 }, { keys = "Ctrl+C" }] },
+      { label = "Docs", icon = "help-contents", open = "https://github.com" },
+      { label = "Mail", text = "M", app = "org.kde.kmail2" },     # text: plain letters/digits
+      # { label = "Me", image = "~/Pictures/me.jpg", open = "~/Pictures" },
+  ] },
+]
+
+# Per-application ring (matched on the `app` context published by detent-kde).
+[plugins.radial.menus.main.apps.firefox]
+items = [
+  { label = "Back",      icon = "go-previous",    keys = "Alt+Left" },
+  { label = "New tab",   icon = "tab-new",        keys = "Ctrl+T" },
+  { label = "Forward",   icon = "go-next",        keys = "Alt+Right" },
+  { label = "Close tab", icon = "tab-close",      keys = "Ctrl+W", color = "#c43e1c" },
+]
+
+# ── Third-party plugin example ──────────────────────────────────────────────
+# [plugins.my-osd]
+# exec = "~/.local/bin/my-osd"
+# caps = ["events.subscribe"]
+
+# ── Profiles: overrides matched on context published by plugins ─────────────
+[profile.firefox]
+match = { app = "firefox" }
+
+[[profile.firefox.bind]]
+when = "gesture + left"
+do = { keys = "Ctrl+W" }
+
+# A profile can also override motions, e.g. back/forward instead of switching desktops:
+# [profile.firefox.layer.gesture]
+# hold = "gesture"
+# "swipe.left" = { keys = "Alt+Left" }
+# "swipe.right" = { keys = "Alt+Right" }

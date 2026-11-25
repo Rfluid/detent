@@ -1,0 +1,435 @@
+{
+  "node": "/dev/hidraw10",
+  "name": "MX Master 4",
+  "kind": "mouse",
+  "protocol": [
+    4,
+    5
+  ],
+  "firmware": [
+    {
+      "kind": "bootloader",
+      "version": "LD 04.00 B0000"
+    },
+    {
+      "kind": "main application",
+      "version": "RBM 27.03 B0019"
+    },
+    {
+      "kind": "main application",
+      "version": "RBM 27.03 B0019"
+    },
+    {
+      "kind": "hardware",
+      "version": "rev 0"
+    }
+  ],
+  "features": [
+    {
+      "index": 0,
+      "id": "0x0000",
+      "name": "Root",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 1,
+      "id": "0x0001",
+      "name": "FeatureSet",
+      "version": 2,
+      "flags": []
+    },
+    {
+      "index": 2,
+      "id": "0x0003",
+      "name": "DeviceFwInfo",
+      "version": 8,
+      "flags": []
+    },
+    {
+      "index": 3,
+      "id": "0x0005",
+      "name": "DeviceNameType",
+      "version": 5,
+      "flags": []
+    },
+    {
+      "index": 4,
+      "id": "0x1D4B",
+      "name": "WirelessDeviceStatus",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 5,
+      "id": "0x0020",
+      "name": "ConfigChange",
+      "version": 1,
+      "flags": []
+    },
+    {
+      "index": 6,
+      "id": "0x0021",
+      "name": "CryptoId",
+      "version": 1,
+      "flags": []
+    },
+    {
+      "index": 7,
+      "id": "0x0007",
+      "name": "DeviceFriendlyName",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 8,
+      "id": "0x0011",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 9,
+      "id": "0x1004",
+      "name": "UnifiedBattery",
+      "version": 5,
+      "flags": []
+    },
+    {
+      "index": 10,
+      "id": "0x1701",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 11,
+      "id": "0x19B0",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 12,
+      "id": "0x19C0",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 13,
+      "id": "0x1B04",
+      "name": "ReprogControlsV4",
+      "version": 6,
+      "flags": []
+    },
+    {
+      "index": 14,
+      "id": "0x1814",
+      "name": "ChangeHost",
+      "version": 2,
+      "flags": []
+    },
+    {
+      "index": 15,
+      "id": "0x1815",
+      "name": "HostsInfo",
+      "version": 2,
+      "flags": []
+    },
+    {
+      "index": 16,
+      "id": "0x2250",
+      "name": "XyStats",
+      "version": 1,
+      "flags": []
+    },
+    {
+      "index": 17,
+      "id": "0x2111",
+      "name": "SmartShiftEnhanced",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 18,
+      "id": "0x2121",
+      "name": "HiResWheel",
+      "version": 1,
+      "flags": []
+    },
+    {
+      "index": 19,
+      "id": "0x2150",
+      "name": "Thumbwheel",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 20,
+      "id": "0x2201",
+      "name": "AdjustableDpi",
+      "version": 2,
+      "flags": []
+    },
+    {
+      "index": 21,
+      "id": "0x2251",
+      "name": "WheelStats",
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 22,
+      "id": "0x00D1",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 23,
+      "id": "0x1802",
+      "name": "DeviceReset",
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 24,
+      "id": "0x1803",
+      "name": null,
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 25,
+      "id": "0x1807",
+      "name": null,
+      "version": 4,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 26,
+      "id": "0x1816",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 27,
+      "id": "0x1805",
+      "name": "OobState",
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering"
+      ]
+    },
+    {
+      "index": 28,
+      "id": "0x1830",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 29,
+      "id": "0x1891",
+      "name": null,
+      "version": 9,
+      "flags": [
+        "hidden",
+        "engineering",
+        "compliance-deactivatable"
+      ]
+    },
+    {
+      "index": 30,
+      "id": "0x18A1",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 31,
+      "id": "0x1E00",
+      "name": "EnableHiddenFeatures",
+      "version": 0,
+      "flags": [
+        "hidden"
+      ]
+    },
+    {
+      "index": 32,
+      "id": "0x1E02",
+      "name": "DeviceDebug",
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering"
+      ]
+    },
+    {
+      "index": 33,
+      "id": "0x1E22",
+      "name": "SpiDirectAccess",
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 34,
+      "id": "0x1E30",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 35,
+      "id": "0x1602",
+      "name": null,
+      "version": 0,
+      "flags": []
+    },
+    {
+      "index": 36,
+      "id": "0x1EB0",
+      "name": "TdeAccess",
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 37,
+      "id": "0x1861",
+      "name": null,
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 38,
+      "id": "0x9205",
+      "name": null,
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 39,
+      "id": "0x9201",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 40,
+      "id": "0x9300",
+      "name": null,
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 41,
+      "id": "0x9401",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 42,
+      "id": "0x9402",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 43,
+      "id": "0x9001",
+      "name": null,
+      "version": 1,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 44,
+      "id": "0x18B1",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    },
+    {
+      "index": 45,
+      "id": "0x18C0",
+      "name": null,
+      "version": 0,
+      "flags": [
+        "hidden",
+        "engineering",
+        "manufacturing-deactivatable"
+      ]
+    }
+  ]
+}

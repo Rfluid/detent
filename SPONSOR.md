@@ -1,0 +1,32 @@
+# Sponsor Detent
+
+Detent is a hobby project I share freely. If it's useful to you and you'd like
+to chip in, here's how — no recurring commitment, no expectations.
+
+## GitHub Sponsors
+
+Monthly or one-time, by card or PayPal:
+**[github.com/sponsors/Rfluid](https://github.com/sponsors/Rfluid)**
+
+## Pix (BRL)
+
+**[livepix.gg/rfluid](https://livepix.gg/rfluid)**
+
+## Bitcoin
+
+```
+bc1qh0tl3tn9xum66htma92lypj7s6ryr6uymut9sh
+```
+
+## Lightning
+
+```
+evilpantry77@walletofsatoshi.com
+```
+
+## Other
+
+For sponsorships, partnerships, or any other arrangement — including fiat
+donations — email **ruy.vieiraneto@gmail.com** and we'll figure something out.
+
+Thanks for supporting independent open-source work.

@@ -1,0 +1,38 @@
+name: Feature or device request
+description: Suggest a feature, an action, a plugin capability, or support for another Logitech device.
+title: "<area>: <what you want>"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: Describe the use, not the implementation. "I want the thumb wheel to zoom in Krita" beats "add a zoom action".
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How should it work?
+      description: Config snippet, CLI command, or behaviour you'd expect. Optional.
+      render: toml
+    validations:
+      required: false
+
+  - type: input
+    id: device
+    attributes:
+      label: Device (for device requests)
+      description: Model, product ID from `detentctl devices`, and connection type.
+      placeholder: "MX Anywhere 3S (046D:B037), Bluetooth"
+    validations:
+      required: false
+
+  - type: textarea
+    id: prior_art
+    attributes:
+      label: Prior art
+      description: Does Logi Options+, Solaar, logiops or another tool do this? How?
+    validations:
+      required: false

@@ -1,0 +1,23 @@
+[package]
+name = "detent-config"
+description = "Config schema (TOML), trigger grammar, native plugin registry, and the compiler to the engine's tables."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+detent-engine.workspace = true
+detent-hidpp-features.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+# Key names are a Detent-owned table (src/keys/names.rs, ADR 0010); evdev only checks it.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+evdev.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,26 @@
+[Unit]
+Description=Detent tray icon
+Documentation=https://github.com/Rfluid/detent
+# Modelled on Rfluid/aura's aura.service (ADR 0009).
+# Lives with the graphical session, NOT with detent.service: the icon must stay up to show
+# "stopped" and offer Start while the daemon is down.
+# graphical-session.target does not wait for the panel to claim
+# org.kde.StatusNotifierWatcher, so the tray can (and at login often does) start before a
+# tray host exists. That is handled in-process: ksni keeps the service alive
+# (watcher_offline returns true) and registers the icon as soon as a host appears.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# Installed by scripts/install.sh.
+ExecStart=%h/.local/bin/detent-tray
+# Restart on a crash, but respect "Quit tray" (a clean exit 0). A second instance exits 0
+# too (single-instance lock in $XDG_RUNTIME_DIR/detent-tray.lock).
+Restart=on-failure
+RestartSec=5s
+# The tray talks to the session bus and opens windows: inherit the session environment.
+PassEnvironment=DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR XAUTHORITY DBUS_SESSION_BUS_ADDRESS
+
+[Install]
+WantedBy=graphical-session.target

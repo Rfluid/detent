@@ -1,0 +1,25 @@
+[package]
+name = "detent-plugin-kde"
+description = "Native Detent plugin: KDE Plasma integration (KWin actions, active-app context, OSD)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "detent-kde"
+path = "src/main.rs"
+
+# KDE Plasma is Linux-only (ADR 0010).
+[target.'cfg(target_os = "linux")'.dependencies]
+detent-plugin.workspace = true
+serde_json.workspace = true
+zbus.workspace = true
+
+# Elsewhere main() only prints where to follow platform support.
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+detent-ipc.workspace = true
+
+[lints]
+workspace = true

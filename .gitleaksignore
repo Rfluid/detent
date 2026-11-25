@@ -1,0 +1,8 @@
+# gitleaks false positives (format: commit:file:rule:line). Say why for each.
+# Don't quote the flagged text in these comments: gitleaks scans this file too.
+# Prefer an inline `gitleaks:allow` comment on the flagged line: it survives history
+# rewrites, while the commit-pinned entries below only match the old private history.
+# generic-api-key on a Ctrl/Shift/Tab key binding in the example config (now also allowed inline).
+caf19f6cee12ae1b0b729ce25f966ec447fdbacb:config/detent.example.toml:generic-api-key:40
+# Same false positive, quoted in an earlier version of this file's comment.
+5a9e5b72caa7e4776a9910ebc213b8100afc4310:.gitleaksignore:generic-api-key:2

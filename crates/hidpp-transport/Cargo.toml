@@ -1,0 +1,24 @@
+[package]
+name = "detent-hidpp-transport"
+description = "HID++ transports: hidraw (Linux), hidapi (macOS, Windows), discovery, and a mock/replay transport for tests."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+detent-hidpp-proto.workspace = true
+
+# One backend per OS (ADR 0010): hidraw through rustix on Linux, hidapi elsewhere.
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+hidapi = { workspace = true, features = ["macos-shared-device"] }
+
+[target.'cfg(windows)'.dependencies]
+hidapi = { workspace = true, features = ["windows-native"] }
+
+[lints]
+workspace = true

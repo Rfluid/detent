@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Rfluid/detent/security/advisories/new
+    about: Report security problems privately, not as a public issue (see SECURITY.md).
+  - name: Want to help? Pick a "help wanted" issue
+    url: https://github.com/Rfluid/detent/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22
+    about: Platform ports and packaging. Each issue has a one-shot prompt for an AI coding agent; see CONTRIBUTING.md.
+  - name: Usage question / how do I...
+    url: https://github.com/Rfluid/detent/blob/main/docs/user/quickstart.md
+    about: Install, udev access, bindings and plugins are covered in the quickstart and the README.
+  - name: Plugin authoring help
+    url: https://github.com/Rfluid/detent/blob/main/docs/plugins/authoring.md
+    about: Building a plugin and the docs are unclear? Start there; file a feature request if the bus lacks something.

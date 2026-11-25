@@ -1,0 +1,32 @@
+[package]
+name = "detentctl"
+description = "Detent CLI: inspect devices, read/edit state, watch events, manage plugins."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+clap_mangen.workspace = true
+detent-config.workspace = true
+detent-device.workspace = true
+detent-hidpp-features.workspace = true
+detent-hidpp-proto.workspace = true
+detent-hidpp-transport.workspace = true
+detent-ipc.workspace = true
+detent-update.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+# SIGPIPE reset in main(); there is no SIGPIPE on Windows.
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[lints]
+workspace = true

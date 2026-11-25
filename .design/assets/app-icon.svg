@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Detent">
+  <title>Detent</title>
+  <!-- App icon: dark brand tile (nx-tile-dark-top to nx-tile-dark-bottom), mark at 62.5% of the tile (scale 5 = 320 px). -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26292D"/>
+      <stop offset="1" stop-color="#07080A"/>
+    </linearGradient>
+    <polygon id="tooth" points="32,15 49.36,11.32 42.93,18.98"/>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#tile)"/>
+  <g transform="translate(96 96) scale(5)">
+    <g fill="#F2F4F6">
+      <path fill-rule="evenodd" d="M32 15a17 17 0 1 0 .001 0ZM32 27a5 5 0 1 1 -.001 0Z"/>
+      <use href="#tooth"/>
+      <use href="#tooth" transform="rotate(45 32 32)"/>
+      <use href="#tooth" transform="rotate(90 32 32)"/>
+      <use href="#tooth" transform="rotate(135 32 32)"/>
+      <use href="#tooth" transform="rotate(180 32 32)"/>
+      <use href="#tooth" transform="rotate(225 32 32)"/>
+      <use href="#tooth" transform="rotate(270 32 32)"/>
+    </g>
+    <use href="#tooth" transform="rotate(315 32 32)" fill="#68CCF5"/>
+  </g>
+</svg>

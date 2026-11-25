@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.pdb
+# HID++ traffic captures can contain device serials; keep them local unless scrubbed.
+/captures/
+# Local agent scratch space
+/.agent/scratch/
+/dist/
+# Local agent/tooling state (worktrees, launch drafts); never part of the repo.
+/.claude/worktrees/
+/.claude/settings.local.json
+/.nexus/

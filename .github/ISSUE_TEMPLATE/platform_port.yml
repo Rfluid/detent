@@ -1,0 +1,82 @@
+name: Platform or desktop port
+description: Propose (or claim) work to make Detent run on another OS, desktop, compositor or device connection.
+title: "<platform>: <what should work>"
+labels: ["help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ports are where Detent most needs help, and they need someone who has the hardware and
+        the OS. Before you start:
+
+        - **Check the open port issues first**: https://github.com/Rfluid/detent/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22
+          Most platforms already have one, with a one-shot prompt for an AI coding agent. Comment there to claim it instead of opening a new one.
+        - Read [CONTRIBUTING.md](https://github.com/Rfluid/detent/blob/main/CONTRIBUTING.md): every OS API, D-Bus name and HID++ fact
+          must be verified on your machine and recorded in `.agent/memory/facts/` and the relevant spec.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux / GNOME
+        - Linux / Hyprland or Sway (wlroots)
+        - Linux / X11 session
+        - Linux / other desktop or compositor
+        - macOS
+        - Windows
+        - A device or receiver (Bolt, Unifying, another mouse)
+        - Packaging (distribution package, installer)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Daemon input backend (remapping, gestures)
+        - Device transport (HID access)
+        - Desktop actions plugin
+        - Radial menu overlay
+        - Tray / menu-bar icon
+        - Start at login (service / agent)
+        - Packaging / signing
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What should work for the user
+      description: The user-visible result, as a check someone can run on real hardware. "On GNOME 47, gesture + swipe left switches to the next workspace."
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: OS and version, desktop/compositor and version, mouse model, connection (Bluetooth, Bolt, Unifying, USB).
+      placeholder: "Ubuntu 24.10, GNOME 47 (Wayland), MX Master 3S over Bolt"
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach and prior art
+      description: Which OS APIs or protocols you plan to use, and what existing tools (Solaar, logiops, libratbag, Mac Mouse Fix, LinearMouse, X-Mouse Button Control, kanata...) do. Facts only from GPL projects; don't copy their code.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched the open issues and this platform/area isn't covered yet.
+          required: true
+        - label: I have the hardware and OS to verify the result on.
+          required: false

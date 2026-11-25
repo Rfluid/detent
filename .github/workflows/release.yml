@@ -1,0 +1,164 @@
+name: Release
+
+# Push a tag vX.Y.Z (after scripts/prepare-release.sh bumped the workspace version) and
+# this builds, tests and packages every target, then publishes a GitHub Release with
+# generated notes. Run it by hand (workflow_dispatch) for a dry run: same builds, tests
+# and archives (uploaded as workflow artifacts), nothing published.
+# Asset naming and bundle contents are a contract (crates/update and the installers rely
+# on them): docs/dev/release.md.
+
+on:
+    push:
+        tags:
+            - "v*.*.*"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+env:
+    CARGO_TERM_COLOR: always
+    CARGO_INCREMENTAL: 0
+    # Linux ships everything; macOS and Windows ship the detentctl preview. These are
+    # the crates detentctl is built from, tested on every row that builds it.
+    PREVIEW_TEST_PACKAGES: >-
+        -p detentctl -p detent-update -p detent-config -p detent-ipc -p detent-device
+        -p detent-hidpp-proto -p detent-hidpp-features -p detent-hidpp-transport
+
+defaults:
+    run:
+        shell: bash
+
+jobs:
+    build:
+        name: Build ${{ matrix.target }}
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # Pinned images (glibc 2.39), not ubuntu-latest, so the minimum glibc
+                    # only moves on purpose. musl is out: GPUI needs glibc system libs.
+                    - target: x86_64-unknown-linux-gnu
+                      runner: ubuntu-24.04
+                      os: linux
+                    - target: aarch64-unknown-linux-gnu
+                      runner: ubuntu-24.04-arm
+                      os: linux
+                    - target: aarch64-apple-darwin
+                      runner: macos-14
+                      os: macos
+                    # macos-13 (the last Intel image of its line) is retired; this is
+                    # GitHub's current Intel macOS image.
+                    - target: x86_64-apple-darwin
+                      runner: macos-15-intel
+                      os: macos
+                    - target: x86_64-pc-windows-msvc
+                      runner: windows-latest
+                      os: windows
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Choose the release label
+              env:
+                  EVENT: ${{ github.event_name }}
+                  TAG: ${{ github.ref_name }}
+              run: |
+                  # `;}` for BSD sed (macOS); tr for a CRLF checkout (Windows).
+                  version="$(tr -d '\r' <Cargo.toml | sed -n '/^\[workspace.package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p;}')"
+                  if [ "$EVENT" = push ]; then
+                      if [ "v${version}" != "$TAG" ]; then
+                          echo "::error::tag $TAG does not match workspace version $version (run scripts/prepare-release.sh)"
+                          exit 1
+                      fi
+                      label="$TAG"
+                  else
+                      label="v${version}-dryrun.${GITHUB_SHA::7}"
+                  fi
+                  echo "LABEL=$label" >>"$GITHUB_ENV"
+                  echo "Packaging as $label"
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install Linux build dependencies
+              if: matrix.os == 'linux'
+              run: bash scripts/ci-apt-deps.sh all
+
+            - name: Cache cargo artifacts
+              uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: release-${{ matrix.target }}
+
+            - name: Test (whole workspace)
+              if: matrix.os == 'linux'
+              run: cargo test --workspace --locked
+
+            - name: Test (detentctl preview)
+              if: matrix.os != 'linux'
+              run: |
+                  # Word splitting of the package list is intended.
+                  # shellcheck disable=SC2086
+                  cargo test --locked $PREVIEW_TEST_PACKAGES
+
+            - name: Build and package (Linux, macOS)
+              if: matrix.os != 'windows'
+              run: bash scripts/package-release.sh "$LABEL"
+
+            - name: Build and package (Windows)
+              if: matrix.os == 'windows'
+              shell: pwsh
+              run: ./scripts/package-release.ps1 -Version $env:LABEL
+
+            - name: Check the archive name matches the contract
+              env:
+                  TARGET: ${{ matrix.target }}
+                  OS: ${{ matrix.os }}
+              run: |
+                  ext=tar.gz
+                  if [ "$OS" = windows ]; then ext=zip; fi
+                  test -f "dist/detent-${LABEL}-${TARGET}.${ext}"
+                  test -f "dist/detent-${LABEL}-${TARGET}.${ext}.sha256"
+
+            - name: Upload packaged artifacts
+              uses: actions/upload-artifact@v7
+              with:
+                  name: release-${{ matrix.target }}
+                  path: |
+                      dist/*.tar.gz
+                      dist/*.zip
+                      dist/*.sha256
+                  if-no-files-found: error
+                  retention-days: ${{ github.event_name == 'push' && 30 || 7 }}
+
+    publish:
+        name: Publish GitHub release
+        if: github.event_name == 'push'
+        runs-on: ubuntu-24.04
+        needs: build
+        steps:
+            - name: Download packaged artifacts
+              uses: actions/download-artifact@v8
+              with:
+                  path: dist
+                  merge-multiple: true
+
+            - name: Verify checksums
+              working-directory: dist
+              run: sha256sum -c ./*.sha256
+
+            - name: Publish GitHub release
+              uses: softprops/action-gh-release@v3
+              with:
+                  generate_release_notes: true
+                  # v0.0.* and suffixed tags (v1.0.0-rc1) are pre-releases; v0.1.0 is not.
+                  prerelease: ${{ startsWith(github.ref_name, 'v0.0.') || contains(github.ref_name, '-') }}
+                  files: |
+                      dist/*.tar.gz
+                      dist/*.zip
+                      dist/*.sha256

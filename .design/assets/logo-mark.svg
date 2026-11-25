@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Detent">
+  <title>Detent</title>
+  <!-- Ink follows the surrounding text colour (currentColor). Engaged tooth is fixed ice blue. -->
+  <defs>
+    <polygon id="tooth" points="32,15 49.36,11.32 42.93,18.98"/>
+  </defs>
+  <g fill="currentColor">
+    <path fill-rule="evenodd" d="M32 15a17 17 0 1 0 .001 0ZM32 27a5 5 0 1 1 -.001 0Z"/>
+    <use href="#tooth"/>
+    <use href="#tooth" transform="rotate(45 32 32)"/>
+    <use href="#tooth" transform="rotate(90 32 32)"/>
+    <use href="#tooth" transform="rotate(135 32 32)"/>
+    <use href="#tooth" transform="rotate(180 32 32)"/>
+    <use href="#tooth" transform="rotate(225 32 32)"/>
+    <use href="#tooth" transform="rotate(270 32 32)"/>
+  </g>
+  <use href="#tooth" transform="rotate(315 32 32)" fill="#68CCF5"/>
+</svg>

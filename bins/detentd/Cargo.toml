@@ -1,0 +1,38 @@
+[package]
+name = "detentd"
+description = "Detent daemon: owns devices, runs the data plane, hosts the plugin bus and client IPC."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Elsewhere main() only prints where to follow platform support (ADR 0010).
+detent-ipc.workspace = true
+
+# The daemon is Linux-only for now (hidraw, evdev, uinput, udev; ADR 0010).
+[target.'cfg(target_os = "linux")'.dependencies]
+anyhow.workspace = true
+arc-swap.workspace = true
+detent-bus.workspace = true
+detent-config.workspace = true
+detent-device.workspace = true
+detent-engine.workspace = true
+detent-hidpp-features.workspace = true
+detent-hidpp-proto.workspace = true
+detent-hidpp-transport.workspace = true
+evdev.workspace = true
+notify.workspace = true
+rtrb.workspace = true
+rustix.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+signal-hook.workspace = true
+toml_edit.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+udev.workspace = true
+
+[lints]
+workspace = true

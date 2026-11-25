@@ -1,0 +1,20 @@
+# cargo-audit configuration (CI: ci.yml "Dependency Security Scan"; local: just pre-pr).
+#
+# Every advisory ignored here reaches Detent only through the radial plugin's GPUI
+# (gpui-pre, pinned exactly per ADR 0005), so we can't fix it from our side without
+# bumping GPUI. Accepted risks, each with the reason. Re-run `cargo audit` whenever GPUI
+# is bumped and delete entries that no longer appear. Never ignore an advisory that
+# reaches detentd, detentctl or the hot-path crates.
+[advisories]
+ignore = [
+    # quick-xml: quadratic time checking duplicate attributes / unbounded namespace
+    # allocation. Only via wayland-scanner, a proc-macro that parses the Wayland protocol
+    # XML shipped inside the crates at build time: trusted input, never at runtime.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+
+    # url: stack overflow in Url::origin() on nested blob: URLs.
+    # gpui-pre -> url. The patched 2.5.9 needs a newer rustc than our rust-version (1.88).
+    # detent-radial never parses URLs from untrusted input.
+    "RUSTSEC-2026-0592",
+]

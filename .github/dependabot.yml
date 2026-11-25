@@ -1,0 +1,40 @@
+version: 2
+
+updates:
+    - package-ecosystem: "cargo"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+          day: "monday"
+          time: "06:00"
+          timezone: "America/Sao_Paulo"
+      open-pull-requests-limit: 5
+      groups:
+          minor-and-patch:
+              applies-to: "version-updates"
+              update-types:
+                  - "minor"
+                  - "patch"
+      ignore:
+          # GPUI is pinned exactly on purpose (ADR 0005, vendor/README.md): bumping it can
+          # break Wayland layer-shell, so it moves by hand, with a check on the real desktop.
+          - dependency-name: "gpui-pre"
+          - dependency-name: "gpui-pre-platform"
+      labels:
+          - "dependencies"
+          - "security"
+
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+          day: "monday"
+          time: "06:00"
+          timezone: "America/Sao_Paulo"
+      open-pull-requests-limit: 5
+      groups:
+          actions:
+              patterns: ["*"]
+      labels:
+          - "dependencies"
+          - "ci"

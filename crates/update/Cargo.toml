@@ -1,0 +1,18 @@
+[package]
+name = "detent-update"
+description = "Release update check against GitHub Releases, sponsor links and the sponsor nudge's state, shared by detentctl and the tray."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+ureq.workspace = true
+
+[lints]
+workspace = true

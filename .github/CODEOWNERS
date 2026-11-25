@@ -1,0 +1,3 @@
+# Default owner for everything. Review by a code owner is not required by branch protection
+# (see .github/settings.yml), but GitHub requests it automatically.
+* @Rfluid

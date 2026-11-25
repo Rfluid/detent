@@ -1,0 +1,17 @@
+[package]
+name = "detent-device"
+description = "Device model: discovery, serialized requester, desired/reported state and the reconciler."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+detent-hidpp-proto.workspace = true
+detent-hidpp-transport.workspace = true
+detent-hidpp-features.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

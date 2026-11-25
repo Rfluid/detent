@@ -1,0 +1,19 @@
+# Detent: give the user of the active seat session access to Logitech HID++ hidraw nodes,
+# the evdev node of Logitech *mice* (EVIOCGRAB while a chord is armed), and uinput.
+# No root daemon needed. Must sort before 73-seat-late.rules (that applies uaccess).
+# Rationale and sources: docs/research/input.md §5.
+
+ACTION=="remove", GOTO="detent_end"
+
+# uinput: Detent's virtual keyboard/pointer
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
+
+# hidraw: Bluetooth (HID bus 0005) and USB (0003) Logitech devices and receivers
+SUBSYSTEM=="hidraw", KERNELS=="0005:046D:*", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNELS=="0003:046D:*", TAG+="uaccess"
+
+# evdev: Logitech mice only (never keyboards)
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="1", KERNELS=="0005:046D:*", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="1", KERNELS=="0003:046D:*", TAG+="uaccess"
+
+LABEL="detent_end"

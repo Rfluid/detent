@@ -1,0 +1,170 @@
+name: Bug report
+description: Something about your mouse, the daemon, the CLI or a plugin doesn't work as it should.
+title: "<area>: <one-line symptom>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Before you start:
+
+        - **Search existing issues first** and comment on a matching one instead of opening a duplicate.
+        - **Title format**: `<area>: <one-line symptom>`, e.g. `radial: ring opens on the wrong monitor`. Same scopes as Detent's commit messages.
+        - If your buttons stopped working, `detentctl reset` gives them back to the mouse firmware.
+        - Logs can contain device serial numbers; redact them if you prefer.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences. Lead with the symptom, not the suspected cause.
+      placeholder: "The thumb-button gesture fires twice after the mouse reconnects over Bluetooth."
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Detent version
+      description: Output of `detentctl --version` and `detentctl status` (daemon version). If you built from source, add the commit (`git rev-parse --short HEAD`).
+      placeholder: "detentctl 0.1.0 / detentd 0.1.0 (commit abc1234)"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device model
+      description: Mouse model and, if you know it, the USB product ID from `detentctl devices` (e.g. `046D:B042`).
+      placeholder: "MX Master 4 (046D:B042)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection type
+      options:
+        - Bluetooth
+        - Logi Bolt receiver
+        - Unifying receiver
+        - USB cable
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: kernel
+    attributes:
+      label: OS, distribution and kernel
+      description: "Linux: distribution, `uname -r`, and whether `hid_logitech_hidpp` is loaded (`lsmod | grep hidpp`). macOS / Windows: the OS version and CPU (Apple silicon / Intel, x86_64 / ARM)."
+      placeholder: "Fedora 44, 7.3.4-200.fc44.x86_64, hid_logitech_hidpp loaded"
+    validations:
+      required: true
+
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop / compositor and session type
+      description: 'Linux: output of `echo "$XDG_CURRENT_DESKTOP / $XDG_SESSION_TYPE"`, plus the desktop version. macOS / Windows: write "n/a".'
+      placeholder: "KDE / wayland (Plasma 6.8)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Install method
+      options:
+        - One-line installer (curl ... install.sh | bash)
+        - One-line installer, Windows (irm ... install.ps1 | iex)
+        - Release archive (tarball / zip)
+        - From source (just install / scripts/install.sh)
+        - From source, run by hand (just run-daemon, cargo run)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Daemon (detentd)
+        - CLI (detentctl)
+        - Device / HID++ (settings, buttons, wheels, haptics)
+        - Gestures and bindings
+        - Configuration
+        - KDE plugin (detent-kde)
+        - Radial menu (detent-radial)
+        - Tray icon (detent-tray)
+        - Third-party plugin / plugin bus
+        - Install, udev rule, systemd unit
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Most useful:
+        - `journalctl --user -u detent -n 200 --no-pager`
+        - `detentctl devices` and `detentctl status`
+        - for device problems, debug logs: `systemctl --user stop detent && DETENT_LOG=debug detentd`
+        - your config (`~/.config/detent/config.toml`) if bindings are involved
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Was it ever working?
+      description: If yes, what changed (Detent update, kernel, desktop, firmware)? Name the last good version if you can.
+    validations:
+      required: false
+
+  - type: textarea
+    id: conflicts
+    attributes:
+      label: Other mouse tools running
+      description: Solaar, logiops (logid), Logi Options+ under Wine, input-remapper, keyd... Detent warns about these at startup; say if any are installed or running.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched open and closed issues and this isn't a duplicate.
+          required: true
+        - label: The logs above contain nothing I don't want to share (serials redacted if I care).
+          required: true

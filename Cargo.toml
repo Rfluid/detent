@@ -1,0 +1,111 @@
+[workspace]
+resolver = "3"
+members = [
+    # HID++ protocol stack
+    "crates/hidpp-proto",
+    "crates/hidpp-transport",
+    "crates/hidpp-features",
+    # Daemon internals
+    "crates/device",
+    "crates/engine",
+    "crates/config",
+    # Wire protocols
+    "crates/bus",
+    "crates/ipc",
+    # Release update check (detentctl `update check`, tray)
+    "crates/update",
+    # Plugin SDK (used by native and third-party plugins)
+    "crates/plugin-sdk",
+    # Binaries
+    "bins/detentd",
+    "bins/detentctl",
+    "bins/detent-tray",
+    # Native plugins (first-party, shipped with Detent)
+    "plugins/kde",
+    "plugins/radial",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Ruy Vieira"]
+
+[workspace.dependencies]
+# Internal crates
+detent-hidpp-proto     = { path = "crates/hidpp-proto" }
+detent-hidpp-transport = { path = "crates/hidpp-transport" }
+detent-hidpp-features  = { path = "crates/hidpp-features" }
+detent-device          = { path = "crates/device" }
+detent-engine          = { path = "crates/engine" }
+detent-config          = { path = "crates/config" }
+detent-bus             = { path = "crates/bus" }
+detent-ipc             = { path = "crates/ipc" }
+detent-plugin          = { path = "crates/plugin-sdk" }
+detent-update          = { path = "crates/update" }
+
+# External (in use)
+clap      = { version = "4", features = ["derive", "wrap_help", "env"] }
+clap_complete = "4.6"   # `detentctl completions <shell>`
+clap_mangen   = "0.3"   # `detentctl man` / `just man` (roff pages from the clap tree)
+libc          = "0.2"   # detentctl: default SIGPIPE so `detentctl ... | head` exits quietly (already in the tree)
+# HID++ transport on macOS and Windows (ADR 0010; Linux uses hidraw). MIT. Backends are
+# picked per target in crates/hidpp-transport: `macos-shared-device`, `windows-native`.
+hidapi        = { version = "2.6", default-features = false }
+serde     = { version = "1", features = ["derive"] }
+thiserror = "2"
+toml      = "1.1"
+uuid      = { version = "1", features = ["v5"] }   # match GPUI display UUIDs (radial)
+toml_edit = "0.25"    # format-preserving config edits (`set --persist`)
+# UI for native plugins with a surface (radial): upstream Zed GPUI with Wayland layer-shell
+# (zed PR #35610), as republished on crates.io by the `gpui-pre` snapshot. Pinned exactly.
+# Why not vendor/gpui any more: ADR 0005 (rev. 2), vendor/README.md.
+gpui          = { package = "gpui-pre", version = "=0.3.14" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["wayland"] }
+futures       = "0.3"     # async channel from the radial plugin's bus thread into GPUI
+# Tray icon (bins/detent-tray, ADR 0009), pinned the way Rfluid/aura does. Both sit on the
+# workspace's zbus 5 with its async-io executor: one zbus in the tree (checked in Cargo.lock).
+ksni          = { version = "0.3", default-features = false, features = ["blocking", "async-io"] }
+notify-rust   = { version = "4.17", default-features = false, features = ["z"] }
+# Update check (crates/update): blocking HTTPS with rustls, no OpenSSL; semver compare.
+ureq          = "3"
+semver        = "1"
+roxmltree     = "0.21"    # tests: tray icons parse as SVG
+
+# External (planned; bump to the latest release when first used)
+anyhow             = "1"
+arc-swap           = "1"     # CompiledConfig hot swap, lock-free reads on the data plane
+rtrb               = "0.3"   # wait-free SPSC rings between data plane and control plane
+postcard           = { version = "1", features = ["use-std"] }  # plugin bus codec
+serde_json         = "1"     # client IPC + JSON bus codec
+rustix             = { version = "1", features = ["event", "fs", "process", "net"] }  # poll, eventfd, ioctl, seqpacket
+signal-hook        = "0.3"   # SIGTERM/SIGINT → orderly shutdown (undivert, ungrab)
+evdev              = "0.13"  # EVIOCGRAB for chords on non-divertable buttons
+udev               = "0.9"   # hotplug
+notify             = "8"     # config hot reload
+zbus               = "5"     # KDE plugin: session D-Bus
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+criterion          = "0.5"   # hot-path benchmarks
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
+# Function length cap (clippy.toml `too-many-lines-threshold`); a hard error under
+# `just lint` (-D warnings). Pre-existing offenders carry #[expect]: ADR 0008.
+too_many_lines = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"
+debug = true

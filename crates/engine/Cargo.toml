@@ -1,0 +1,23 @@
+[package]
+name = "detent-engine"
+description = "Data plane: classify → modifiers/layers → leases → binding table → uinput. Allocation-free hot path."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# Deliberately none: the data plane stays dependency-free (ADR 0008).
+[dependencies]
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+# tests/zero_alloc.rs parses + classifies real frames before dispatch
+detent-hidpp-proto.workspace = true
+
+[[bench]]
+name = "dispatch"
+harness = false

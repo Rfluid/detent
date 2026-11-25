@@ -1,0 +1,36 @@
+name: SBOM
+
+on:
+    push:
+        branches: [main]
+    schedule:
+        - cron: "0 6 * * 1"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    generate-sbom:
+        name: Generate SBOM (CycloneDX)
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install Syft
+              uses: anchore/sbom-action/download-syft@v0
+
+            # vendor/ holds no built code (vendor/README.md); keep it out of the inventory.
+            - name: Generate SBOM (JSON + XML)
+              run: |
+                  syft dir:. --exclude ./vendor --exclude ./target -o cyclonedx-json=sbom.json
+                  syft dir:. --exclude ./vendor --exclude ./target -o cyclonedx-xml=sbom.xml
+
+            - name: Upload SBOM artifacts
+              uses: actions/upload-artifact@v7
+              with:
+                  name: sbom
+                  path: |
+                      sbom.json
+                      sbom.xml

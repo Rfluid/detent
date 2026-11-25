@@ -1,0 +1,108 @@
+# Repository settings as code (format of the Probot "settings" app, as in aura).
+# Applied by hand with `gh api` (commands in docs/dev/ci-and-release.md); keep this file and
+# the live repo in sync. The repo is public from v0.1.0, so branch protection below can be
+# applied (it was declared but inactive while the repo was private on a free plan).
+
+repository:
+    name: detent
+    private: false
+    description: "Userspace daemon for Logitech HID++ mice (MX Master 4): device settings, gestures, button remapping and plugins (KDE integration, radial menu). Linux; macOS and Windows in preview"
+    topics: rust, linux, macos, windows, logitech, hidpp, mx-master, mouse, daemon, hidraw, udev, kde-plasma, wayland, gpui
+    has_issues: true
+    has_projects: false
+    has_wiki: false
+
+    allow_merge_commit: false
+    allow_squash_merge: true
+    allow_rebase_merge: true
+    allow_auto_merge: false
+    allow_update_branch: true
+    delete_branch_on_merge: true
+
+    squash_merge_commit_title: "PR_TITLE"
+    squash_merge_commit_message: "PR_BODY"
+
+    enable_vulnerability_alerts: true
+    enable_automated_security_fixes: true
+
+branches:
+    - name: main
+      protection:
+          required_status_checks:
+              strict: true
+              # GitHub Actions check names = job `name:` (ci.yml, secret-scanning.yml).
+              contexts:
+                  - "Core - Format, Clippy, Tests & File Size"
+                  - "GPUI Plugin - Clippy & Tests"
+                  - "Dependency Security Scan (cargo-audit)"
+                  - "Secret Detection (gitleaks)"
+          required_pull_request_reviews:
+              required_approving_review_count: 1
+              dismiss_stale_reviews: true
+              require_code_owner_reviews: false
+          required_conversation_resolution: true
+          # The owner (admin) pushes locally merged work straight to main.
+          enforce_admins: false
+          restrictions: null
+          allow_force_pushes: false
+          allow_deletions: false
+          required_linear_history: true
+
+labels:
+    - name: "security"
+      color: "d73a4a"
+      description: "Security-related fixes, CVEs, SAST, supply chain"
+
+    - name: "ci"
+      color: "0e8a16"
+      description: "CI/CD workflow updates"
+
+    - name: "dependencies"
+      color: "1d76db"
+      description: "Dependency updates and maintenance"
+
+    # Platform and area labels (created with `gh label create` at launch). The README's
+    # platform table and the roadmap link to their issue filters: don't rename them.
+    - name: "platform:linux-gnome"
+      color: "4a86cf"
+      description: "Linux with GNOME Shell"
+
+    - name: "platform:linux-wlroots"
+      color: "2a9d8f"
+      description: "Linux with Hyprland, Sway or another wlroots-style compositor"
+
+    - name: "platform:linux-x11"
+      color: "7b61a8"
+      description: "Linux X11 sessions"
+
+    - name: "platform:macos"
+      color: "6e7781"
+      description: "macOS"
+
+    - name: "platform:windows"
+      color: "0078d4"
+      description: "Windows"
+
+    - name: "area:plugin"
+      color: "d4c5f9"
+      description: "Desktop plugins (actions, radial menu) on the plugin bus"
+
+    - name: "area:daemon"
+      color: "fbca04"
+      description: "detentd: input backend, service, tray"
+
+    - name: "area:transport"
+      color: "f9d0c4"
+      description: "Device access: HID backends, receivers, device support"
+
+    - name: "area:packaging"
+      color: "c2e0c6"
+      description: "Installers, distribution packages, signing, release assets"
+
+    - name: "help wanted"
+      color: "008672"
+      description: "Extra attention is needed: ports that need someone with the hardware/OS"
+
+    - name: "good first issue"
+      color: "7057ff"
+      description: "Good for newcomers"

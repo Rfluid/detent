@@ -1,0 +1,184 @@
+name: CI
+
+# Mirrors `just verify` (fmt + file-size ratchet + clippy -D warnings + tests), split in two
+# so the fast core loop isn't held up by the GPUI plugin's system deps and long first build
+# (same split as `just check-core`), plus macOS and Windows jobs for the portable
+# subset (ADR 0010). Docs: docs/dev/ci-and-release.md.
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    CARGO_TERM_COLOR: always
+    CARGO_INCREMENTAL: 0
+    RUST_BACKTRACE: short
+
+jobs:
+    core:
+        name: Core - Format, Clippy, Tests & File Size
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt, clippy
+
+            - name: Install Linux build dependencies
+              run: bash scripts/ci-apt-deps.sh core
+
+            - name: Cache cargo artifacts
+              uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: core
+
+            - name: Check formatting
+              run: cargo fmt --all -- --check
+
+            - name: File-size ratchet
+              run: bash scripts/check-file-size.sh
+
+            - name: Run clippy
+              run: cargo clippy --workspace --all-targets --locked --exclude detent-plugin-radial -- -D warnings
+
+            - name: Run tests
+              run: cargo test --workspace --locked --exclude detent-plugin-radial
+
+    gpui:
+        name: GPUI Plugin - Clippy & Tests
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
+
+            - name: Install Linux build dependencies
+              run: bash scripts/ci-apt-deps.sh all
+
+            - name: Cache cargo artifacts
+              uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: gpui
+
+            - name: Run clippy
+              run: cargo clippy -p detent-plugin-radial --all-targets --locked -- -D warnings
+
+            - name: Run tests
+              run: cargo test -p detent-plugin-radial --locked
+
+    # macOS and Windows build detentctl's device commands for real (hidapi transport) and
+    # every Linux-only member as a stub that exits early (ADR 0010). No apt deps, no GPUI.
+    portable:
+        name: Portable - Check, Clippy & Tests (${{ matrix.os }})
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-14, windows-latest]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
+
+            - name: Cache cargo artifacts
+              uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: portable-${{ matrix.os }}
+
+            - name: Check
+              run: cargo check --workspace --all-targets --locked
+
+            - name: Run clippy
+              run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+            - name: Run tests
+              run: cargo test --workspace --locked
+
+    lint-workflows:
+        name: Workflow & Script Lint
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            # taiki-e/install-action has no actionlint; use upstream's documented
+            # download script, pinned to the same release as the script.
+            - name: Install actionlint
+              run: bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+
+            - name: actionlint
+              run: ./actionlint -color
+
+            # shellcheck ships on GitHub's Ubuntu images.
+            - name: shellcheck
+              run: shellcheck install.sh scripts/*.sh
+
+    audit:
+        name: Dependency Security Scan (cargo-audit)
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install cargo-audit
+              uses: taiki-e/install-action@v2
+              with:
+                  tool: cargo-audit
+
+            - name: Run cargo-audit
+              run: cargo audit
+
+    package:
+        name: Release Build & Package
+        runs-on: ubuntu-24.04
+        # Same build as release.yml, so a broken package shows up before a tag is pushed.
+        # Skipped on PRs: the GPUI release build is the slowest job, and the core and GPUI
+        # jobs already cover what a PR can break.
+        if: github.event_name != 'pull_request'
+        needs: [core, gpui]
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install Linux build dependencies
+              run: bash scripts/ci-apt-deps.sh all
+
+            - name: Cache cargo artifacts
+              uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: release
+
+            - name: Build and package
+              run: bash scripts/package-release.sh "main-${GITHUB_SHA::7}"
+
+            - name: Upload package
+              uses: actions/upload-artifact@v7
+              with:
+                  name: detent-main-${{ github.sha }}
+                  path: dist/
+                  retention-days: 7
+                  if-no-files-found: error

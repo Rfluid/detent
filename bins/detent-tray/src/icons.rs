@@ -1,0 +1,259 @@
+//! The six tray icons, generated from the logo geometry (.design/assets/logo-mark-symbolic.svg,
+//! .design/logo.md) and shipped as files in packaging/icons/hicolor/scalable/status/.
+//!
+//! Differences from the source mark are structural only, for Plasma's icon loader:
+//! every tooth is written out as a flat polygon (no `<use>`), and every shape carries the
+//! `ColorScheme-Text` class next to a `current-color-scheme` style element, which is what
+//! Plasma rewrites to recolour a symbolic icon to the panel's text colour.
+//! Badges (pause, cross, exclamation, down arrow) sit in a cut-out in the lower right.
+//!
+//! Regenerate after a change: `cargo run -p detent-tray -- --write-icons
+//! packaging/icons/hicolor/scalable/status` (a test fails while the files are stale).
+
+use std::fmt::Write as _;
+use std::path::Path;
+
+/// Icon base names, in the order of `model::State` plus the update variant.
+pub const NAMES: [&str; 6] = [
+    "detent-tray-running-symbolic",
+    "detent-tray-nomouse-symbolic",
+    "detent-tray-paused-symbolic",
+    "detent-tray-stopped-symbolic",
+    "detent-tray-error-symbolic",
+    "detent-tray-update-symbolic",
+];
+
+/// Logo geometry (64 × 64 grid, centre 32,32): one tooth, rotated in 45° steps.
+const TOOTH: [(f64, f64); 3] = [(32.0, 15.0), (49.36, 11.32), (42.93, 18.98)];
+const HUB: &str = "M32 15a17 17 0 1 0 .001 0ZM32 27a5 5 0 1 1 -.001 0Z";
+const ENGAGED_DEG: u32 = 315;
+const ENGAGED_OPACITY: &str = ".55";
+const DIM_OPACITY: &str = ".5";
+/// Breeze's default text colour; Plasma replaces it with the panel's.
+const DEFAULT_TEXT: &str = "#232629";
+const INK: &str = r#"class="ColorScheme-Text" style="fill:currentColor""#;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Badge {
+    None,
+    Pause,
+    Cross,
+    Bang,
+    Down,
+}
+
+struct Spec {
+    engaged: bool,
+    dim: bool,
+    badge: Badge,
+}
+
+fn spec(name: &str) -> Option<Spec> {
+    let s = |engaged, dim, badge| {
+        Some(Spec {
+            engaged,
+            dim,
+            badge,
+        })
+    };
+    match name {
+        "detent-tray-running-symbolic" => s(true, false, Badge::None),
+        "detent-tray-nomouse-symbolic" => s(false, true, Badge::None),
+        "detent-tray-paused-symbolic" => s(false, false, Badge::Pause),
+        "detent-tray-stopped-symbolic" => s(false, true, Badge::Cross),
+        "detent-tray-error-symbolic" => s(false, false, Badge::Bang),
+        "detent-tray-update-symbolic" => s(true, false, Badge::Down),
+        _ => None,
+    }
+}
+
+/// The tooth rotated by `deg` about (32, 32), as SVG `points` (clockwise, like `rotate()`).
+fn tooth_points(deg: u32) -> String {
+    let (sin, cos) = f64::from(deg).to_radians().sin_cos();
+    TOOTH
+        .iter()
+        .map(|&(x, y)| {
+            let (dx, dy) = (x - 32.0, y - 32.0);
+            let (rx, ry) = (32.0 + dx * cos - dy * sin, 32.0 + dx * sin + dy * cos);
+            format!("{},{}", num(rx), num(ry))
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Two decimals, trailing zeros trimmed, no `-0`.
+fn num(v: f64) -> String {
+    let s = format!("{:.2}", v);
+    let s = s.trim_end_matches('0').trim_end_matches('.');
+    if s == "-0" { "0".into() } else { s.into() }
+}
+
+fn badge(b: Badge) -> &'static str {
+    match b {
+        Badge::None => "",
+        Badge::Pause => concat!(
+            r#"    <rect x="39" y="37.5" width="5" height="17" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+            r#"    <rect x="48.5" y="37.5" width="5" height="17" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+        ),
+        Badge::Cross => concat!(
+            r#"    <path d="M39.5 39.5L52.5 52.5M52.5 39.5L39.5 52.5" class="ColorScheme-Text" style="fill:none;stroke:currentColor;stroke-width:5"/>"#,
+            "\n",
+        ),
+        Badge::Bang => concat!(
+            r#"    <rect x="43.5" y="35.5" width="5.5" height="12" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+            r#"    <circle cx="46.25" cy="53" r="3.2" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+        ),
+        Badge::Down => concat!(
+            r#"    <rect x="43.5" y="35" width="5.5" height="10" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+            r#"    <polygon points="38,44 54.5,44 46.25,54.5" class="ColorScheme-Text" style="fill:currentColor"/>"#,
+            "\n",
+        ),
+    }
+}
+
+/// The SVG text of one icon; `None` for an unknown name.
+pub fn svg(name: &str) -> Option<String> {
+    let sp = spec(name)?;
+    let cut = sp.badge != Badge::None;
+    let mut o = String::new();
+    o.push_str(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="16" height="16">"#,
+    );
+    o.push('\n');
+    let _ = writeln!(
+        o,
+        // No double hyphen in here: XML comments forbid it.
+        "  <!-- {name}: generated by bins/detent-tray/src/icons.rs from .design/assets/logo-mark-symbolic.svg. Do not edit by hand. -->"
+    );
+    let _ = writeln!(
+        o,
+        r#"  <style id="current-color-scheme" type="text/css">.ColorScheme-Text {{ color:{DEFAULT_TEXT}; }}</style>"#
+    );
+    if cut {
+        o.push_str(concat!(
+            r#"  <defs><mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">"#,
+            r#"<rect width="64" height="64" style="fill:#fff"/><circle cx="46" cy="46" r="19" style="fill:#000"/>"#,
+            "</mask></defs>\n",
+        ));
+    }
+    if sp.dim {
+        let _ = writeln!(o, r#"  <g opacity="{DIM_OPACITY}">"#);
+    } else {
+        o.push_str("  <g>\n");
+    }
+    if cut {
+        o.push_str("   <g mask=\"url(#cut)\">\n");
+    }
+    let _ = writeln!(o, r#"    <path fill-rule="evenodd" d="{HUB}" {INK}/>"#);
+    for k in 0..7 {
+        let _ = writeln!(
+            o,
+            r#"    <polygon points="{}" {INK}/>"#,
+            tooth_points(k * 45)
+        );
+    }
+    if sp.engaged {
+        let _ = writeln!(
+            o,
+            r#"    <polygon points="{}" class="ColorScheme-Text" style="fill:currentColor;fill-opacity:{ENGAGED_OPACITY}"/>"#,
+            tooth_points(ENGAGED_DEG)
+        );
+    }
+    if cut {
+        o.push_str("   </g>\n");
+    }
+    o.push_str(badge(sp.badge));
+    o.push_str("  </g>\n</svg>\n");
+    Some(o)
+}
+
+/// Write all six icons into `dir` (`--write-icons`).
+pub fn write_all(dir: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    for n in NAMES {
+        let body = svg(n).ok_or_else(|| std::io::Error::other(format!("no spec for {n}")))?;
+        std::fs::write(dir.join(format!("{n}.svg")), body)?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn shipped_dir() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packaging/icons/hicolor/scalable/status")
+    }
+
+    #[test]
+    fn rotation_matches_logo() {
+        assert_eq!(tooth_points(0), "32,15 49.36,11.32 42.93,18.98");
+        // 180° about the centre mirrors through (32, 32).
+        assert_eq!(tooth_points(180), "32,49 14.64,52.68 21.07,45.02");
+    }
+
+    #[test]
+    fn shipped_files_are_current_and_parse() {
+        for n in NAMES {
+            let path = shipped_dir().join(format!("{n}.svg"));
+            let file = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert_eq!(
+                file,
+                svg(n).unwrap(),
+                "{n}.svg is stale: cargo run -p detent-tray -- --write-icons packaging/icons/hicolor/scalable/status"
+            );
+            let doc = roxmltree::Document::parse(&file).expect("valid XML");
+            let root = doc.root_element();
+            assert_eq!(root.tag_name().name(), "svg");
+            assert_eq!(
+                root.tag_name().namespace(),
+                Some("http://www.w3.org/2000/svg")
+            );
+            assert_eq!(root.attribute("viewBox"), Some("0 0 64 64"));
+            assert!(
+                doc.descendants()
+                    .any(|e| e.attribute("id") == Some("current-color-scheme")),
+                "{n}: Plasma's style element"
+            );
+            assert!(
+                doc.descendants().all(|e| e.tag_name().name() != "use"),
+                "{n}: no <use>"
+            );
+            let shapes = doc
+                .descendants()
+                .filter(|e| matches!(e.tag_name().name(), "path" | "polygon" | "rect" | "circle"))
+                .filter(|e| e.ancestors().all(|a| a.tag_name().name() != "mask"));
+            for e in shapes {
+                assert_eq!(
+                    e.attribute("class"),
+                    Some("ColorScheme-Text"),
+                    "{n}: every shape recolours"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn state_features() {
+        let s = |n: &str| svg(n).unwrap();
+        assert!(s("detent-tray-running-symbolic").contains("fill-opacity:.55"));
+        assert!(!s("detent-tray-running-symbolic").contains("mask"));
+        assert!(
+            !s("detent-tray-paused-symbolic").contains("fill-opacity"),
+            "no engaged tooth"
+        );
+        assert!(s("detent-tray-nomouse-symbolic").contains(r#"opacity=".5""#));
+        assert!(s("detent-tray-stopped-symbolic").contains(r#"opacity=".5""#));
+        assert!(!s("detent-tray-error-symbolic").contains(r#"opacity=".5""#));
+        assert!(s("detent-tray-update-symbolic").contains("fill-opacity:.55"));
+        assert!(svg("nope").is_none());
+    }
+}

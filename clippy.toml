@@ -1,0 +1,5 @@
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+# Max lines per function body for clippy::too_many_lines (enabled in [workspace.lints]).
+# Policy: .agent/context/conventions.md ("File size"), ADR 0008.
+too-many-lines-threshold = 100

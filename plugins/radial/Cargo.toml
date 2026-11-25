@@ -1,0 +1,34 @@
+[package]
+name = "detent-plugin-radial"
+description = "Native Detent plugin: on-screen radial menu (GPUI + Wayland layer-shell)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "detent-radial"
+path = "src/main.rs"
+
+# Wayland layer-shell overlay: Linux-only for now (ADR 0010).
+[target.'cfg(target_os = "linux")'.dependencies]
+anyhow.workspace = true
+detent-bus.workspace = true
+detent-plugin.workspace = true
+futures.workspace = true
+# Upstream GPUI with Wayland layer-shell (gpui-pre snapshot), see ADR 0005.
+gpui.workspace = true
+gpui_platform.workspace = true
+serde_json.workspace = true
+# `--preview` reads [plugins.radial] straight from a config file
+toml.workspace = true
+# the output under the cursor → GPUI display (GPUI's UUIDs are v5 of the output name)
+uuid.workspace = true
+
+# Elsewhere main() only prints where to follow platform support.
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+detent-ipc.workspace = true
+
+[lints]
+workspace = true

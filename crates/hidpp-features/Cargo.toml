@@ -1,0 +1,16 @@
+[package]
+name = "detent-hidpp-features"
+description = "Typed HID++ 2.0 feature modules: read, apply, decode notifications, expose an editable schema."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+detent-hidpp-proto.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
