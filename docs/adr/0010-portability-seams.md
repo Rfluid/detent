@@ -80,9 +80,9 @@ crate on Windows for the settings catalogue and types, not for a connection. Nam
 (`interprocess`) wait until there is a Windows daemon to talk to; ADR 0006 is amended.
 The plugin bus (`SOCK_SEQPACKET`) is Linux-only, and so is the SDK.
 
-**CI.** `ci.yml` gains macOS (`macos-14`) and Windows (`windows-latest`) jobs that run
+**CI.** `ci.yml` gains macOS (`macos-15`) and Windows (`windows-latest`) jobs that run
 `cargo check`, clippy `-D warnings` and `cargo test` for the whole workspace (the Linux-only
-members build as stubs). `release.yml` builds the preview on `macos-14` (Apple silicon),
+members build as stubs). `release.yml` builds the preview on `macos-15` (Apple silicon),
 `macos-15-intel` and `windows-latest`.
 
 ## Consequences

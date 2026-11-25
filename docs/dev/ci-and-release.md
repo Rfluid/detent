@@ -20,7 +20,7 @@ Repository: <https://github.com/Rfluid/detent> (public from v0.1.0). The setup f
 |---|---|---|---|
 | `ci.yml` (CI) | push to `main`, PRs, manual | **Core - Format, Clippy, Tests & File Size**: `cargo fmt --check`, `scripts/check-file-size.sh`, clippy `-D warnings` and tests for the whole workspace except `detent-plugin-radial`. Only needs `libudev-dev` | `just lint && just test` (`just check-core` for a quick check) |
 | | | **GPUI Plugin - Clippy & Tests**: the same for `detent-plugin-radial`, with the GPUI system packages | `cargo clippy -p detent-plugin-radial --all-targets` |
-| | | **Portable - Check, Clippy & Tests (macos-14 / windows-latest)**: `cargo check`, clippy `-D warnings` and tests for the whole workspace on macOS and Windows; Linux-only members build as stubs (ADR 0010) | cross-check from Linux, below |
+| | | **Portable - Check, Clippy & Tests (macos-15 / windows-latest)**: `cargo check`, clippy `-D warnings` and tests for the whole workspace on macOS and Windows; Linux-only members build as stubs (ADR 0010) | cross-check from Linux, below |
 | | | **Workflow & Script Lint**: `actionlint` + `shellcheck install.sh scripts/*.sh` | `just pre-pr` |
 | | | **Dependency Security Scan (cargo-audit)** | `cargo audit` |
 | | | **Release Build & Package** (not on PRs, after core + gpui): runs `scripts/package-release.sh main-<sha>` and uploads the tarball as a 7-day artifact | `just package` |

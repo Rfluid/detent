@@ -45,7 +45,7 @@ nothing.
 |---|---|---|---|
 | `x86_64-unknown-linux-gnu` | `ubuntu-24.04` (glibc 2.39) | everything | `cargo test --workspace` |
 | `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | everything | `cargo test --workspace` |
-| `aarch64-apple-darwin` | `macos-14` | `detentctl` preview | detentctl and the crates it's built from (`PREVIEW_TEST_PACKAGES` in release.yml) |
+| `aarch64-apple-darwin` | `macos-15` | `detentctl` preview | detentctl and the crates it's built from (`PREVIEW_TEST_PACKAGES` in release.yml) |
 | `x86_64-apple-darwin` | `macos-15-intel` | `detentctl` preview | same |
 | `x86_64-pc-windows-msvc` | `windows-latest` | `detentctl` preview | same |
 
