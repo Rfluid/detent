@@ -6,7 +6,8 @@
 //! Layout: `app.rs` is startup, hotplug and shutdown; the other modules one concern each.
 //! Threads:
 //! - main: signals (SIGTERM/SIGINT → orderly shutdown)
-//! - hotplug: udev monitor on `hidraw`, attaches Logitech HID++ devices
+//! - hotplug: udev monitor on `hidraw`, attaches Logitech HID++ devices (receiver slots
+//!   too, `receivers.rs`)
 //! - per device: data plane (`dataplane.rs`) + worker (`worker.rs`)
 //! - config watcher and client IPC (`config_watch.rs`, `ipc.rs`)
 
@@ -32,6 +33,8 @@ mod ipc;
 mod msg;
 #[cfg(target_os = "linux")]
 mod persist;
+#[cfg(target_os = "linux")]
+mod receivers;
 #[cfg(target_os = "linux")]
 mod shared;
 #[cfg(target_os = "linux")]

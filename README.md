@@ -287,7 +287,7 @@ Write your own in any language: [docs/plugins/authoring.md](docs/plugins/authori
 | Device | Status |
 |---|---|
 | Logitech **MX Master 4** over Bluetooth (`046D:B042`) | Supported; developed and verified on Bluetooth |
-| MX Master 4 through a Logi Bolt receiver | Not verified yet ([open issues][transport]): receivers address the mouse with a device index other than `0xFF` |
+| MX Master 4 through a Logi Bolt receiver (`046D:C548`) | In progress ([#5](https://github.com/Rfluid/detent/issues/5)): `detentctl` lists and reads it on Linux; daemon remapping not verified yet. Unifying receivers not supported |
 | Other Logitech HID++ 2.0 mice (MX Master 3S, MX Anywhere 3S, ...) | Not yet ([open issues][transport]). The protocol layer is generic, but features and controls are only verified for the MX Master 4. See [device spec](docs/specs/devices/mx-master-4.md) |
 
 Hardware facts are verified on the real device before code depends on them, so adding a

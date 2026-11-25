@@ -48,6 +48,10 @@ pub struct DeviceSummary {
     pub id: String,
     pub name: String,
     pub node: String,
+    /// Receiver slot (1–6) when the device is reached through a receiver at `node`;
+    /// absent for direct (Bluetooth / USB cable) devices.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<u8>,
     /// HID++ frames read by the data plane since attach.
     #[serde(default)]
     pub frames: u64,

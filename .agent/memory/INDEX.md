@@ -38,6 +38,8 @@ One line per entry. Agents append after each task that produced new learning.
 - [2026-11-25-cross-check-c-build-scripts](facts/2026-11-25-cross-check-c-build-scripts.md): `cargo check --target {aarch64-apple-darwin,x86_64-pc-windows-msvc}` from Linux works if the C build scripts (`ring`, hidapi's macOS backend) are overridden with `--config target.<t>.<links>...`; never override hidapi on Windows
 - [2026-11-25-notify-rust-close-reason](facts/2026-11-25-notify-rust-close-reason.md): notify-rust 4.17's `wait_for_action` reports every close as `"__closed"`; for the reason (2 = dismissed by the user) use `zbus::block_on(handle.wait_for_action_async(..))`
 
+- [2026-11-25-bolt-receiver](facts/2026-11-25-bolt-receiver.md): Bolt C548 on Linux 7.3 = hid-generic (no dj), HID++ on interface 2, MX4 at slot 2 (key B042:A204BE6C), pairing/name registers, 0x1D4B on power-on, transient EPIPE + spurious first error (retry)
+
 ## lessons/
 
 - [2026-11-23-hidpp-error-layout](lessons/2026-11-23-hidpp-error-layout.md): in HID++ error reports the original feature index is byte 3 (header position), not the first param
