@@ -1298,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "detent-bus"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "postcard",
  "serde",
@@ -1307,7 +1307,7 @@ dependencies = [
 
 [[package]]
 name = "detent-config"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-engine",
  "detent-hidpp-features",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "detent-device"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-hidpp-features",
  "detent-hidpp-proto",
@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "detent-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "detent-hidpp-proto",
@@ -1338,7 +1338,7 @@ dependencies = [
 
 [[package]]
 name = "detent-hidpp-features"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-hidpp-proto",
  "serde",
@@ -1347,14 +1347,14 @@ dependencies = [
 
 [[package]]
 name = "detent-hidpp-proto"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
 ]
 
 [[package]]
 name = "detent-hidpp-transport"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-hidpp-proto",
  "hidapi",
@@ -1363,7 +1363,7 @@ dependencies = [
 
 [[package]]
 name = "detent-ipc"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1372,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "detent-plugin"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-bus",
  "rustix",
@@ -1381,7 +1381,7 @@ dependencies = [
 
 [[package]]
 name = "detent-plugin-kde"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-ipc",
  "detent-plugin",
@@ -1391,7 +1391,7 @@ dependencies = [
 
 [[package]]
 name = "detent-plugin-radial"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "detent-bus",
@@ -1407,7 +1407,7 @@ dependencies = [
 
 [[package]]
 name = "detent-tray"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "detent-hidpp-transport",
  "detent-ipc",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "detent-update"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "semver",
  "serde",
@@ -1434,7 +1434,7 @@ dependencies = [
 
 [[package]]
 name = "detentctl"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1455,7 +1455,7 @@ dependencies = [
 
 [[package]]
 name = "detentd"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "arc-swap",
