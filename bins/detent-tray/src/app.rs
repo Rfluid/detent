@@ -101,8 +101,20 @@ pub fn main() {
 
 /// A made-up snapshot per state, for `--preview`.
 fn preview(state: &str) -> Option<model::Snapshot> {
-    use model::{DaemonView, DeviceView, Snapshot, UpdateView};
+    use model::{DaemonView, DeviceView, HostView, Snapshot, UpdateView};
+    let host = |number, name: Option<&str>, current| HostView {
+        number,
+        name: name.map(str::to_string),
+        paired: Some(name.is_some()),
+        current,
+    };
     let mx = DeviceView {
+        id: "preview".into(),
+        hosts: vec![
+            host(1, Some("desktop"), true),
+            host(2, Some("laptop"), false),
+            host(3, None, false),
+        ],
         name: "MX Master 4".into(),
         link: Some("Bluetooth".into()),
         battery: Some(85),

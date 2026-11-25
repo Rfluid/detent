@@ -97,6 +97,12 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: Option<SettingsCmd>,
     },
+    /// Easy-Switch hosts (computers the mouse is paired with): list, switch, rename
+    #[command(visible_alias = "host")]
+    Hosts {
+        #[command(subcommand)]
+        cmd: Option<HostsCmd>,
+    },
     /// Show the bindings of the loaded config
     Bindings(BindingsArgs),
     /// Actions (built-in and from plugins): list, invoke
@@ -241,6 +247,33 @@ pub struct SetArgs {
     pub persist: bool,
 }
 
+#[derive(Subcommand, Debug)]
+pub enum HostsCmd {
+    /// Each Easy-Switch slot: its name, whether it is paired, and which one is in use
+    List,
+    /// Move the mouse to another computer: a host number, `next` or `prev`. The mouse
+    /// disconnects from this one; its Easy-Switch button brings it back
+    Switch {
+        /// 1-3 (as printed on the mouse), `next` or `prev`
+        #[arg(allow_hyphen_values = true)]
+        to: String,
+    },
+    /// Store a name for a host on the mouse (shown here and in Logi Options+)
+    Rename(RenameArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct RenameArgs {
+    /// Host number (1-3)
+    pub host: String,
+    /// The new name
+    #[arg(required_unless_present = "this_host", conflicts_with = "this_host")]
+    pub name: Option<String>,
+    /// Use this computer's host name
+    #[arg(long)]
+    pub this_host: bool,
+}
+
 #[derive(Args, Debug)]
 pub struct BindingsArgs {
     /// Only this profile (`base` or a profile name)
@@ -383,6 +416,21 @@ mod tests {
             other => panic!("{other:?}"),
         }
         assert!(matches!(parse(&["disable"]).cmd, Cmd::Disable));
+        assert!(matches!(parse(&["hosts"]).cmd, Cmd::Hosts { cmd: None }));
+        assert!(matches!(
+            parse(&["host", "switch", "next"]).cmd,
+            Cmd::Hosts { cmd: Some(HostsCmd::Switch { to }) } if to == "next"
+        ));
+        match parse(&["hosts", "rename", "2", "--this-host"]).cmd {
+            Cmd::Hosts {
+                cmd: Some(HostsCmd::Rename(r)),
+            } => assert!(r.this_host && r.name.is_none() && r.host == "2"),
+            other => panic!("{other:?}"),
+        }
+        assert!(Cli::try_parse_from(["detentctl", "hosts", "rename", "2"]).is_err());
+        assert!(
+            Cli::try_parse_from(["detentctl", "hosts", "rename", "2", "x", "--this-host"]).is_err()
+        );
         assert!(matches!(
             parse(&["completions", "zsh"]).cmd,
             Cmd::Completions { .. }

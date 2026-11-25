@@ -228,6 +228,9 @@ pub mod builtin {
     pub const EXEC: &str = "exec";
     /// `{ "keys": "Ctrl+C" }` (needs `InputEmit`)
     pub const KEYS: &str = "keys";
+    /// Easy-Switch: `{ "to": 2 }` (1-based), `{ "to": "next" }` or `{ "to": "prev" }`.
+    /// The mouse disconnects from this computer. Needs `DeviceControl`.
+    pub const DEVICE_HOST: &str = "device.host";
 }
 
 /// Encoding of bus packets. One message per `SOCK_SEQPACKET` packet.

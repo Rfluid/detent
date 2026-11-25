@@ -198,6 +198,21 @@ impl Shared {
                     .map_err(|_| "device busy".to_string())?;
                 return Ok(());
             }
+            detent_bus::builtin::DEVICE_HOST => {
+                let to = match &params["to"] {
+                    Value::String(s) => s.clone(),
+                    Value::Number(n) => n.to_string(),
+                    _ => return Err("`device.host` needs {\"to\": 2 | \"next\" | \"prev\"}".into()),
+                };
+                let t = crate::ipc::handlers::hosts::parse_target(&to).map_err(|e| e.1)?;
+                let devs = lock(&self.devices);
+                let d = devs.values().next().ok_or("no device attached")?;
+                d.tx.try_send(WorkerMsg::Cmd(Cmd::Device(
+                    detent_engine::action::DeviceCmd::ChangeHost(t),
+                )))
+                .map_err(|_| "device busy".to_string())?;
+                return Ok(());
+            }
             _ => {}
         }
         self.publish("action", json!({"action": name, "trigger": trigger}));

@@ -184,6 +184,7 @@ Action (exactly one):
 | Key | Runs |
 |---|---|
 | `action = "kde.overview"` (+ any params) | any action in the shared namespace (other plugins too) |
+| `action = "device.host", to = 2` (or `"next"`, `"prev"`) | Easy-Switch the mouse to that computer (built-in; cap `device.control`, granted by default) |
 | `exec = "spectacle -r"` | shell command (built-in `exec`) |
 | `keys = "Ctrl+C"` | key combo (built-in `keys`) |
 | `app = "org.kde.konsole"` | launch a desktop app (`gtk-launch`); `label`/`icon` default to the desktop file's `Name`/`Icon` |

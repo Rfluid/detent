@@ -7,6 +7,7 @@ pub mod cid;
 pub mod device_info;
 pub mod feature_set;
 pub mod haptics;
+pub mod hosts;
 pub mod reprog_controls;
 pub mod root;
 pub mod smartshift;
@@ -47,6 +48,10 @@ pub trait Requester {
         function: u8,
         params: &[u8],
     ) -> Result<Frame, RequestError>;
+
+    /// Send a request that gets no reply (ChangeHost setCurrentHost: the link drops at
+    /// once). Written once, never retried.
+    fn send(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<(), RequestError>;
 }
 
 /// Something a feature can report from an unsolicited notification.

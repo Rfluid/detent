@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use detent_hidpp_features::{Feature, RequestError};
 use detent_hidpp_features::{
-    FeatureTable, Requester, adjustable_dpi, device_info, haptics, reprog_controls, root,
+    FeatureTable, Requester, adjustable_dpi, device_info, haptics, hosts, reprog_controls, root,
     smartshift, unified_battery, wheel,
 };
 use detent_hidpp_proto::FeatureId;
@@ -89,7 +89,8 @@ pub struct DeviceState {
     pub smartshift: Section<smartshift::State>,
     pub wheel: Section<wheel::WheelState>,
     pub thumbwheel: Section<wheel::ThumbwheelState>,
-    pub hosts: Section<wheel::HostsState>,
+    /// Easy-Switch slots. Reported only: switching is a command, never desired state.
+    pub hosts: Section<hosts::HostsState>,
     pub controls: Section<reprog_controls::State>,
     pub haptics: Section<haptics::State>,
     /// Last read error per section (cleared on success), so `get` can explain gaps.
@@ -167,7 +168,7 @@ impl DeviceState {
             self.thumbwheel.set_reported(v);
         }
         if has(self, FeatureId::CHANGE_HOST) {
-            let v = self.record("hosts", wheel::hosts(dev));
+            let v = self.record("hosts", hosts::read(dev));
             self.hosts.set_reported(v);
         }
         if has(self, FeatureId::REPROG_CONTROLS_V4) {

@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::model::{Daemon, Snapshot, device_detail};
+use crate::model::{Daemon, HostView, Snapshot, device_detail};
 
 /// What a menu row (or a click on the icon) asks the action thread to do.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +18,11 @@ pub enum Action {
     OpenConfig(PathBuf),
     ViewLogs,
     OpenUrl(String),
+    /// `hosts.switch`: Easy-Switch the device to another host (1-based).
+    SwitchHost {
+        device: String,
+        host: u8,
+    },
     CheckUpdates,
     About,
     Quit,
@@ -76,11 +81,50 @@ fn headers(s: &Snapshot) -> Vec<Entry> {
     out
 }
 
+/// `1: laptop` or `Host 1`. `&` is doubled so it isn't read as a mnemonic.
+fn host_label(h: &HostView) -> String {
+    match &h.name {
+        Some(n) => format!("{}: {}", h.number, n.replace('&', "&&")),
+        None => format!("Host {}", h.number),
+    }
+}
+
+/// Easy-Switch rows per device with more than one slot: where it is now, then one
+/// "Switch to" row per other slot (disabled when nothing is paired there). No mnemonics:
+/// digits would repeat across devices.
+fn host_rows(s: &Snapshot) -> Vec<Entry> {
+    let mut out = Vec::new();
+    for dev in s.running().map_or(&[][..], |d| d.devices.as_slice()) {
+        if dev.hosts.len() < 2 {
+            continue;
+        }
+        if let Some(cur) = dev.hosts.iter().find(|h| h.current) {
+            out.push(Entry::Header(format!(
+                "Easy-Switch: {} (this computer)",
+                host_label(cur).replace("&&", "&")
+            )));
+        }
+        for h in dev.hosts.iter().filter(|h| !h.current) {
+            out.push(item(
+                &format!("Switch to {}", host_label(h)),
+                h.paired != Some(false),
+                Action::SwitchHost {
+                    device: dev.id.clone(),
+                    host: h.number,
+                },
+            ));
+        }
+        out.push(Entry::Separator);
+    }
+    out
+}
+
 /// The whole menu. `default_config` is used when the daemon can't tell its config path.
 pub fn build(s: &Snapshot, default_config: &Path) -> Vec<Entry> {
     let up = s.running();
     let mut m = headers(s);
     m.push(Entry::Separator);
+    m.extend(host_rows(s));
     match up {
         Some(d) if !d.remap_enabled => {
             m.push(item("Re&sume remapping", true, Action::SetRemap(true)))
@@ -306,6 +350,48 @@ mod tests {
             seen.dedup();
             assert_eq!(seen.len(), n, "duplicate mnemonic in {s:?}");
         }
+    }
+
+    #[test]
+    fn easy_switch_rows() {
+        let host = |number, name: Option<&str>, paired, current| HostView {
+            number,
+            name: name.map(str::to_string),
+            paired,
+            current,
+        };
+        let mut dev = mx(Some(85));
+        dev.hosts = vec![
+            host(1, Some("desk"), Some(true), true),
+            host(2, Some("Mac & co"), Some(true), false),
+            host(3, None, Some(false), false),
+        ];
+        let m = build(&up(vec![dev], true, None), Path::new("/d"));
+        let l = labels(&m);
+        assert_eq!(
+            &l[3..7],
+            [
+                "# Easy-Switch: 1: desk (this computer)",
+                "Switch to 2: Mac && co",
+                "Switch to Host 3 (disabled)",
+                "-"
+            ]
+        );
+        assert!(m.contains(&item(
+            "Switch to 2: Mac && co",
+            true,
+            Action::SwitchHost {
+                device: "B042:serial".into(),
+                host: 2
+            }
+        )));
+        assert_eq!(
+            to_dbusmenu("Switch to 2: Mac && co"),
+            "Switch to 2: Mac & co"
+        );
+        // one slot (or none): no rows
+        let l = labels(&build(&up(vec![mx(None)], true, None), Path::new("/d")));
+        assert!(!l.iter().any(|x| x.contains("Switch to")));
     }
 
     #[test]

@@ -165,8 +165,18 @@ fn summary(st: &Value) {
         );
     }
     if let Some(h) = rep(st, "hosts") {
-        let cur = h.get("current").and_then(Value::as_u64).unwrap_or(0) + 1;
-        println!("  easy-switch   host {cur} of {}", s(h.get("count")));
+        let cur = h.get("current").and_then(Value::as_u64).unwrap_or(0);
+        let name = h
+            .pointer(&format!("/slots/{cur}/name"))
+            .and_then(Value::as_str)
+            .filter(|n| !n.is_empty())
+            .map(|n| format!(" ({n})"))
+            .unwrap_or_default();
+        println!(
+            "  easy-switch   host {}{name} of {}  (detentctl hosts)",
+            cur + 1,
+            s(h.get("count"))
+        );
     }
     if let Some(c) = rep(st, "controls") {
         let list = |key: &str| -> String {

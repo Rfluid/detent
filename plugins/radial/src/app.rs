@@ -62,6 +62,8 @@ fn manifest() -> Manifest {
             Capability::DeviceHaptics,
             Capability::ActionsInvoke,
             Capability::InputEmit,
+            // items that run `device.host` (Easy-Switch to another computer)
+            Capability::DeviceControl,
             // `app` context for per-application rings
             Capability::EventsSubscribe,
         ],

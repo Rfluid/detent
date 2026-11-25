@@ -13,12 +13,12 @@ use detent_ipc::types::Status;
 use detent_ipc::{Client, method};
 use serde_json::{Value, json};
 
-use crate::model::{Daemon, DaemonView, DeviceView};
+use crate::model::{Daemon, DaemonView, DeviceView, HostView};
 
 pub const UNIT: &str = "detent.service";
 
 /// Events that can change what the tray shows.
-const TOPICS: [&str; 4] = ["remap", "link", "config", "plugin"];
+const TOPICS: [&str; 5] = ["remap", "link", "config", "plugin", "host"];
 
 /// Wake-ups for the refresh loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +77,31 @@ pub fn battery_of(state: &Value) -> Option<u8> {
         .and_then(|p| u8::try_from(p).ok())
 }
 
+/// Easy-Switch slots out of a `device.get` result (`hosts.reported`).
+pub fn hosts_of(state: &Value) -> Vec<HostView> {
+    let h = &state["hosts"]["reported"];
+    let current = h["current"].as_u64();
+    h["slots"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|s| {
+                    let slot = s["slot"].as_u64()?;
+                    Some(HostView {
+                        number: u8::try_from(slot + 1).ok()?,
+                        name: s["name"]
+                            .as_str()
+                            .filter(|n| !n.trim().is_empty())
+                            .map(str::to_string),
+                        paired: s["paired"].as_bool(),
+                        current: current == Some(slot),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// One full read of the daemon. `Down` when nothing answers.
 pub fn read(socket: &Path) -> Daemon {
     let Ok(mut c) = Client::connect_to(socket) else {
@@ -95,14 +120,15 @@ fn view(c: &mut Client, s: Status) -> DaemonView {
     let devices = s
         .devices
         .iter()
-        .map(|d| DeviceView {
-            name: d.name.clone(),
-            link: links.get(&d.node).cloned(),
-            battery: c
-                .call(method::DEVICE_GET, json!({ "device": d.id }))
-                .ok()
-                .as_ref()
-                .and_then(battery_of),
+        .map(|d| {
+            let st = c.call(method::DEVICE_GET, json!({ "device": d.id })).ok();
+            DeviceView {
+                id: d.id.clone(),
+                hosts: st.as_ref().map(hosts_of).unwrap_or_default(),
+                name: d.name.clone(),
+                link: links.get(&d.node).cloned(),
+                battery: st.as_ref().and_then(battery_of),
+            }
         })
         .collect();
     DaemonView {
@@ -155,6 +181,24 @@ mod tests {
         assert_eq!(battery_of(&st), Some(85));
         assert_eq!(battery_of(&json!({"battery": {"reported": null}})), None);
         assert_eq!(battery_of(&json!({})), None);
+    }
+
+    #[test]
+    fn hosts_from_device_state() {
+        let st = json!({"hosts": {"reported": {"count": 3, "current": 1, "slots": [
+            {"slot": 0, "paired": true, "name": "laptop"},
+            {"slot": 1, "paired": true, "name": ""},
+            {"slot": 2, "paired": false, "name": null}
+        ]}}});
+        let h = hosts_of(&st);
+        assert_eq!(h.len(), 3);
+        assert_eq!(
+            (h[0].number, h[0].name.as_deref(), h[0].current),
+            (1, Some("laptop"), false)
+        );
+        assert!(h[1].current && h[1].name.is_none());
+        assert_eq!(h[2].paired, Some(false));
+        assert!(hosts_of(&json!({"hosts": {"reported": null}})).is_empty());
     }
 
     #[test]

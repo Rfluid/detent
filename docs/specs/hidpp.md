@@ -1,9 +1,9 @@
 ---
 title: HID++ 2.0 notes
 status: current
-version: 0.2.0
-last_updated: 2026-11-23
-last_verified: 2026-11-23
+version: 0.3.0
+last_updated: 2026-11-25
+last_verified: 2026-11-25
 source_refs: ["crates/hidpp-proto/", "crates/hidpp-features/", "crates/device/src/requester.rs"]
 owner: "@rfluid"
 tags: [spec, hidpp, protocol]
@@ -54,7 +54,11 @@ still marked ⚠ is unverified.
 Never send:
 - any request on the **0x1D4B** index (the kernel treats any report there as "device
   connected" and reruns its setup);
-- **0x1814** setCurrentHost (moves the mouse to another computer);
+- **0x1814** setCurrentHost (moves the mouse to another computer) except on an explicit
+  user action (`hosts switch`, a `device = "host"` binding, `device.host`, the tray). It
+  is fire-and-forget (no reply; the link drops) and never re-applied on reconnect;
+- **0x1815** setHostFriendlyName except on an explicit `hosts rename` (never the local
+  hostname behind the user's back, as Solaar does);
 - **0x19C0** writes (persistent force-button calibration);
 - **persistent** diversion bits in setCidReporting (buttons would stay dead without Detent);
 - anything to a feature not listed below, or to a hidden/engineering feature.
@@ -74,7 +78,8 @@ Never send:
 | Device FW info | `0x0003` | firmware versions | verified |
 | Device name/type | `0x0005` | name | verified |
 | Unified battery | `0x1004` | battery | verified (charging byte: kernel table) |
-| Change host | `0x1814` | Easy-Switch state (read only) | verified |
+| Change host | `0x1814` | Easy-Switch: slot count, current; switch on request | read verified; switch ⚠ |
+| Hosts info | `0x1815` | Easy-Switch: paired, names; rename on request | layout from Solaar ⚠ |
 | Reprog controls v4 | `0x1B04` (v6 on MX4) | divert buttons, raw XY | verified (CIDs below) |
 | Wireless device status | `0x1D4B` | reconnect notification | layout from prior art; event on device ⚠ (Phase 2) |
 | SmartShift enhanced | `0x2111` | wheel mode, auto-shift, torque | verified (MX4 has no 0x2110) |
@@ -83,6 +88,18 @@ Never send:
 | Adjustable DPI | `0x2201` | DPI | verified (MX4 has no 0x2202) |
 | Haptics | `0x19B0` | enable, intensity, play waveform | verified (read) |
 | Force sensing button | `0x19C0` | — | never written |
+
+## Easy-Switch (`0x1814`, `0x1815`)
+
+Layouts in [research/hidpp-layouts-device.md](../research/hidpp-layouts-device.md#6-changehost-0x1814-and-hostsinfo-0x1815);
+code in `crates/hidpp-features/src/hosts.rs`.
+- Read on attach: 0x1814 fn 0, then (if present) 0x1815 fn 0, fn 1 per slot and fn 3 in
+  14-byte chunks per name. HostsInfo failures leave names empty; switching still works.
+- Switch: re-read fn 0, resolve `next`/`prev` with wrap-around, check `slot < count`,
+  skip if already there, then `Requester::send` (one write, no reply, no retry).
+- Rename: needs caps bit1; name ≤ `nameMaxLen` bytes, no control characters; written in
+  14-byte chunks at offsets 0, 14, ...; then read back, and the CLI prints what the device
+  kept. ⚠ Whether a shorter name truncates the old one isn't known yet.
 
 ## Reprog controls v4 (`0x1B04`)
 

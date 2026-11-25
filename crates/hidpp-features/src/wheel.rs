@@ -213,25 +213,3 @@ impl ThumbwheelEvent {
         })
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HostsState {
-    pub count: u8,
-    /// 0-based current host slot (Easy-Switch channel - 1).
-    pub current: u8,
-}
-
-/// ChangeHost (0x1814) fn 0 getHostInfo → `count u8, current u8, ...`. Read-only here:
-/// switching hosts disconnects the mouse from this computer.
-pub fn hosts(dev: &mut dyn Requester) -> Result<HostsState, RequestError> {
-    let i = idx(dev, FeatureId::CHANGE_HOST)?;
-    let r = dev.request(i, 0, &[])?;
-    let p = r.params();
-    if p.len() < 2 {
-        return Err(RequestError::Malformed);
-    }
-    Ok(HostsState {
-        count: p[0],
-        current: p[1],
-    })
-}

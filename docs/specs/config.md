@@ -83,7 +83,7 @@ Exactly one of:
 |---|---|---|
 | `keys` | `"Ctrl+Alt+Left"`, `"Super"`, `"VolumeUp"` (kernel key names, case-insensitive) | data plane (uinput) |
 | `button` | `"back"`, `"forward"`, `"middle"`, `"left"`, `"right"` | data plane |
-| `device` | `"cycle-dpi"`, `"toggle-smartshift"`, `"haptic"` (+ `waveform = "..."`), `"dpi"` (+ `value = 1600`) | worker → device |
+| `device` | `"cycle-dpi"`, `"toggle-smartshift"`, `"haptic"` (+ `waveform = "..."`), `"dpi"` (+ `value = 1600`), `"host"` (+ `value = 2`, `"next"` or `"prev"`: Easy-Switch to that computer; the mouse leaves this one) | worker → device |
 | `exec` | `"spectacle -r"` (run with `sh -c`, detached) | control plane |
 | `action` | `"kde.overview"`, `"radial.open"` | plugin |
 

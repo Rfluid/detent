@@ -6,6 +6,7 @@ pub mod daemon;
 pub mod devices;
 pub mod events;
 pub mod generate;
+pub mod hosts;
 pub mod plugins;
 pub mod settings;
 pub mod sponsor;
@@ -13,7 +14,9 @@ pub mod status;
 
 use anyhow::Result;
 
-use crate::cli::{ActionsCmd, Cli, Cmd, ConfigCmd, DebugCmd, DevicesCmd, PluginsCmd, SettingsCmd};
+use crate::cli::{
+    ActionsCmd, Cli, Cmd, ConfigCmd, DebugCmd, DevicesCmd, HostsCmd, PluginsCmd, SettingsCmd,
+};
 use crate::ctx::Ctx;
 use crate::direct;
 
@@ -36,6 +39,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Cmd::Reload => config::run(&ctx, ConfigCmd::Reload),
         Cmd::Devices { cmd } => devices::run(&ctx, cmd.unwrap_or(DevicesCmd::List)),
         Cmd::Haptic(a) => devices::haptic(&ctx, &a),
+        Cmd::Hosts { cmd } => hosts::run(&ctx, cmd.unwrap_or(HostsCmd::List)),
         Cmd::Settings { cmd } => settings::run(&ctx, cmd.unwrap_or(SettingsCmd::List)),
         Cmd::Get { path: Some(p) } => settings::run(&ctx, SettingsCmd::Get { path: p }),
         Cmd::Get { path: None } => devices::run(&ctx, DevicesCmd::Info),

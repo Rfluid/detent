@@ -211,6 +211,20 @@ impl<T: Transport> Requester for DirectRequester<T> {
         }
         Err(last)
     }
+
+    fn send(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<(), RequestError> {
+        let req = Frame::request_with(
+            ReportId::Long,
+            self.device,
+            feature_index,
+            function,
+            self.swid,
+            params,
+        )
+        .map_err(|_| RequestError::Malformed)?;
+        self.transport.send(&req)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -263,5 +277,15 @@ mod tests {
             DirectRequester::new(t, DeviceIndex::DIRECT).with_timeout(Duration::from_millis(1), 2);
         assert!(matches!(r.request(0, 1, &[]), Err(RequestError::Timeout)));
         assert_eq!(r.transport_mut().sent.len(), 3);
+    }
+
+    #[test]
+    fn send_writes_once_and_waits_for_nothing() {
+        let t = MockTransport::new();
+        let mut r = DirectRequester::new(t, DeviceIndex::DIRECT);
+        r.send(0x0E, 1, &[2]).unwrap();
+        let sent = &r.transport_mut().sent;
+        assert_eq!(sent.len(), 1);
+        assert_eq!(&sent[0].as_bytes()[..5], &[0x11, 0xFF, 0x0E, 0x1E, 2]);
     }
 }

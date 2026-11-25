@@ -3,7 +3,9 @@
 
 use std::collections::BTreeMap;
 
-use detent_engine::action::{ActionId, CmdId, DeviceCmd, KeyChord, ParamsRef, PluginSlot};
+use detent_engine::action::{
+    ActionId, CmdId, DeviceCmd, HostTarget, KeyChord, ParamsRef, PluginSlot,
+};
 use detent_engine::out::code;
 use detent_engine::{Action, Compiled, ControlSlot, Edge, LayerId, ModMask, Tables, slot};
 use detent_hidpp_features::cid;
@@ -51,6 +53,21 @@ impl CompiledConfig {
             })
             .map_or(0, |i| (i + 1).min(u8::MAX as usize) as u8)
     }
+}
+
+/// `value = 2` (1-based, as printed on the mouse), `"2"`, `"next"` or `"prev"`.
+fn host_target(v: Option<&toml::Value>) -> Option<HostTarget> {
+    use detent_hidpp_features::hosts::Target;
+    let t = match v? {
+        toml::Value::Integer(n) => Target::parse(&n.to_string())?,
+        toml::Value::String(s) => Target::parse(s)?,
+        _ => return None,
+    };
+    Some(match t {
+        Target::Slot(s) => HostTarget::Slot(s),
+        Target::Next => HostTarget::Next,
+        Target::Prev => HostTarget::Prev,
+    })
 }
 
 fn err(when: &str, msg: impl Into<String>) -> ConfigError {
@@ -229,12 +246,20 @@ impl<'a> Builder<'a> {
                         .ok_or_else(|| err(when, "`device = \"dpi\"` needs `value = <dpi>`"))?;
                     DeviceCmd::SetDpi(u16::try_from(v).map_err(|_| err(when, "dpi out of range"))?)
                 }
+                "host" => {
+                    DeviceCmd::ChangeHost(host_target(d.params.get("value")).ok_or_else(|| {
+                        err(
+                            when,
+                            "`device = \"host\"` needs `value = 1..=3`, \"next\" or \"prev\"",
+                        )
+                    })?)
+                }
                 other => {
                     return Err(err(
                         when,
                         format!(
                             "unknown device action `{other}` (cycle-dpi, toggle-smartshift, \
-                             haptic, dpi)"
+                             haptic, dpi, host)"
                         ),
                     ));
                 }

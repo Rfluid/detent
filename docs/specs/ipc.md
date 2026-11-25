@@ -1,10 +1,10 @@
 ---
 title: Client IPC
 status: current
-version: 0.4.0
+version: 0.5.0
 last_updated: 2026-11-25
 last_verified: 2026-11-25
-source_refs: ["crates/ipc/src/", "bins/detentd/src/ipc.rs", "bins/detentd/src/ipc/handlers.rs", "bins/detentctl/src/"]
+source_refs: ["crates/ipc/src/", "bins/detentd/src/ipc.rs", "bins/detentd/src/ipc/handlers.rs", "bins/detentd/src/ipc/handlers/hosts.rs", "bins/detentctl/src/"]
 owner: "@rfluid"
 tags: [spec, ipc, cli]
 ---
@@ -14,8 +14,8 @@ tags: [spec, ipc, cli]
 JSON-RPC 2.0, newline-delimited, over `$XDG_RUNTIME_DIR/detent/ctl.sock`. Setting
 `$DETENT_SOCKET` overrides the path for both the daemon and clients, which is useful for
 tests or a second daemon. Clients are `detentctl`, the tray icon (`detent-tray`: `status`,
-`device.get` for the battery, `remap.set`, `config.reload`, `events.subscribe` on `remap`,
-`link`, `config`, `plugin`), a future GUI and scripts. It isn't latency-critical, so it's designed to be easy to debug:
+`device.get` for the battery and Easy-Switch hosts, `remap.set`, `config.reload`,
+`hosts.switch`, `events.subscribe` on `remap`, `link`, `config`, `plugin`, `host`), a future GUI and scripts. It isn't latency-critical, so it's designed to be easy to debug:
 
 ```sh
 echo '{"jsonrpc":"2.0","id":1,"method":"status","params":{}}' | socat - UNIX:$XDG_RUNTIME_DIR/detent/ctl.sock
@@ -52,6 +52,9 @@ over a channel and wait at most 10 s. Nothing here touches the data plane except
 | `device.features` | `{ device? }` | feature table | (`detentctl debug features` reads the device directly) |
 | `device.raw` | `{ device?, feature, function, params }` | raw response bytes | not exposed in the CLI (expert, unverified writes) |
 | `haptic.play` | `{ device?, waveform }` (name or id) | ok | `detentctl haptic [waveform]` |
+| `hosts.list` | `{ device? }` | `{count, current, enhanced, can_rename, slots: [{slot, paired, name, name_max}]}` (re-read from the device; `slot`/`current` 0-based) | `detentctl hosts` |
+| `hosts.switch` | `{ device?, to }` (`"2"`, `"next"`, `"prev"`; 1-based) | `{switched, from, to}` (1-based) | `detentctl hosts switch <to>` |
+| `hosts.rename` | `{ device?, host, name }` (1-based) | the hosts section as the device reports it after the write | `detentctl hosts rename <host> <name> \| --this-host` |
 | `events.subscribe` | `{ topics: [...] }` | stream of notifications | `detentctl events [topics]` |
 | `config.reload` | `{}` | ok / errors | `detentctl config reload` |
 | `config.validate` | `{ text }` | ok / errors | `detentctl config check` (validates locally) |
@@ -79,11 +82,16 @@ Notes:
   keep using the real config. A config reload while paused stays paused. The state isn't
   persisted: the daemon always starts enabled.
 - `device.raw` refuses the 0x1D4B feature (the kernel treats any request there as a reconnect).
+- `hosts.switch` sends ChangeHost setCurrentHost without waiting (the device answers
+  nothing and drops the link), so the device detaches right after the reply. It is a
+  command, never desired state: nothing re-applies it on reconnect. `hosts.rename` writes
+  only what the caller asked for; Detent never writes host names on its own. A host
+  number the device doesn't have is `-32602`.
 - `events.subscribe` acknowledges, then streams `{"method":"event","params":{topic,...}}`
   lines. Topics: `action`, `exec`, `link`, `config`, `profile`, `context`, `plugin`,
   `remap` (`{enabled}`), `setting` (`{device, path, value, persist}` or
-  `{device, path, value: null, unset: true}`). Slow subscribers lose events and never
-  block the daemon.
+  `{device, path, value: null, unset: true}`), `host` (`{device, switched, from, to}` or
+  `{device, renamed, name}`). Slow subscribers lose events and never block the daemon.
 
 ## Errors
 
