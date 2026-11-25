@@ -78,8 +78,8 @@ Never send:
 | Device FW info | `0x0003` | firmware versions | verified |
 | Device name/type | `0x0005` | name | verified |
 | Unified battery | `0x1004` | battery | verified (charging byte: kernel table) |
-| Change host | `0x1814` | Easy-Switch: slot count, current; switch on request | read verified; switch ⚠ |
-| Hosts info | `0x1815` | Easy-Switch: paired, names; rename on request | layout from Solaar ⚠ |
+| Change host | `0x1814` | Easy-Switch: slot count, current; switch on request | read verified; switch to another host ⚠ (not run yet) |
+| Hosts info | `0x1815` | Easy-Switch: paired, names; rename on request | verified 2026-11-25 (read, rename any slot) |
 | Reprog controls v4 | `0x1B04` (v6 on MX4) | divert buttons, raw XY | verified (CIDs below) |
 | Wireless device status | `0x1D4B` | reconnect notification | verified through Bolt: power-on sends `11 02 04 00 01 01 01` (status 1, reconfigure 1) |
 | SmartShift enhanced | `0x2111` | wheel mode, auto-shift, torque | verified (MX4 has no 0x2110) |
@@ -99,7 +99,9 @@ code in `crates/hidpp-features/src/hosts.rs`.
   skip if already there, then `Requester::send` (one write, no reply, no retry).
 - Rename: needs caps bit1; name ≤ `nameMaxLen` bytes, no control characters; written in
   14-byte chunks at offsets 0, 14, ...; then read back, and the CLI prints what the device
-  kept. ⚠ Whether a shorter name truncates the old one isn't known yet.
+  kept. Verified on the MX4 (2026-11-25, through the Bolt receiver): caps `0x03`, 24-byte
+  names, a shorter name replaces a longer one completely, and slots other than the
+  current one can be renamed.
 
 ## Reprog controls v4 (`0x1B04`)
 

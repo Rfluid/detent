@@ -20,7 +20,12 @@ Read from source (Solaar `hidpp20.py` / `settings_templates.py`, logiops `Change
 - Logitech's `x1815_hostsinfo_v2.pdf` exists in their HID++ Drive folder but couldn't be
   fetched, so the full 0x1815 function list is unknown.
 
-**Not yet checked on the owner's MX4** (the mouse was on the Bolt receiver during this
-task): caps bits, fn1 bytes 2-3, whether a rename of a non-current slot is accepted,
-whether a shorter name truncates the old one, and that setCurrentHost moves the mouse.
-Run `detentctl hosts`, `hosts rename 1 --this-host`, `hosts switch next` and record results here.
+**Checked on the owner's MX4 on 2026-11-25** (through the Bolt receiver, device index 2):
+3 slots, current = slot 3 (the receiver), `enhanced` flag 0, caps allow read and write,
+`nameMaxLen` 24. Renaming works on the current slot and on another slot; a shorter name
+replaces a longer one completely (no leftover tail). Switching to the current slot sends
+nothing. Slot names were restored afterwards (`chico`, `R phone`, `Logitech Bolt
+receiver`; `chico` is also this computer's hostname, its Bluetooth pairing).
+
+**Still unverified:** an actual setCurrentHost to another slot (it takes the mouse away;
+the owner presses Easy-Switch to come back), and 0x1815 fn1 bytes 2-3.

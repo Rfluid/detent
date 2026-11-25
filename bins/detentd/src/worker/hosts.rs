@@ -72,9 +72,12 @@ impl Worker {
                 Ok(v)
             }
             Ok(None) => {
-                info!("{}: already on host {from:?}", self.key);
+                let cur = from.map_or_else(|| "?".to_string(), |f| f.to_string());
+                info!("{}: already on host {cur}", self.key);
                 Ok(json!({"switched": false, "from": from, "to": from}))
             }
+            // A host number the device doesn't have is the caller's mistake, not ours.
+            Err(e @ RequestError::OutOfRange(_)) => Err(rpc_err(&e)),
             Err(e) => {
                 warn!("{}: host switch failed: {}", self.key, fmt_err(&e));
                 Err(rpc_err(&e))

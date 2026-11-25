@@ -139,8 +139,9 @@ input features (sections 7, 9-13) in [hidpp-layouts-input.md](hidpp-layouts-inpu
     (owner decision 2026-11-25), in 14-byte chunks at offsets 0, 14, ... (Solaar
     `set_host_name`: fn 4 `[host, offset, bytes]`, no length byte, no terminator).
   - Reading names is fine.
-  - ⚠ To verify on the MX4: caps bits, fn 1 bytes 2-3, whether fn 4 accepts slots other
-    than the current one, and whether a shorter name truncates the stored one.
+  - Verified on the MX4 (2026-11-25): caps bit0 and bit1 set, `nameMaxLen` 24, fn 4
+    accepts any slot, a shorter name replaces the stored one completely. Still unknown:
+    fn 1 bytes 2-3.
 - Bytes 1-3 of fn1 (bus type, page count?) are **unverified**.
 
 ## 8. WirelessDeviceStatus 0x1D4B
