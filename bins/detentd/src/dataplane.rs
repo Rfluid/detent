@@ -40,6 +40,9 @@ pub struct Stats {
 
 pub struct DataPlane {
     pub hidraw: HidrawTransport,
+    /// 0xFF for a direct device; 1–6 for a receiver slot (the node carries every slot's
+    /// traffic, so frames for other slots are skipped).
+    pub device: DeviceIndex,
     pub evdev: Option<RawDevice>,
     pub uinput: Uinput,
     pub wake: OwnedFd,
@@ -132,7 +135,8 @@ impl DataPlane {
     fn on_frame(&mut self, f: Frame, engine: &mut Engine, cfg: &CompiledConfig, out: &mut Out) {
         self.stats.frames.fetch_add(1, Ordering::Relaxed);
         let d = f.device_index();
-        if d != DeviceIndex::DIRECT && d.0 != 0 {
+        // Direct devices sometimes answer at index 0x00 (docs/specs/hidpp.md).
+        if d != self.device && !(self.device == DeviceIndex::DIRECT && d.0 == 0) {
             return;
         }
         match classify(&f, SoftwareId::DETENT) {

@@ -20,7 +20,7 @@ use detent_hidpp_features::{
     Feature, RequestError, Requester, adjustable_dpi, haptics, reprog_controls, smartshift,
     unified_battery,
 };
-use detent_hidpp_proto::{FeatureId, Frame};
+use detent_hidpp_proto::{DeviceIndex, FeatureId, Frame};
 use tracing::{debug, info, warn};
 
 use crate::msg::{Cmd, FromDp, ToDp, WorkerMsg};
@@ -39,6 +39,8 @@ const VERIFY_EVERY: Duration = Duration::from_secs(30);
 pub struct Link {
     pub tx: rtrb::Producer<ToDp>,
     pub wake: OwnedFd,
+    /// Where requests go: 0xFF direct, 1–6 a receiver slot.
+    pub device: DeviceIndex,
 }
 
 impl Link {

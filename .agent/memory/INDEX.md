@@ -39,6 +39,8 @@ One line per entry. Agents append after each task that produced new learning.
 - [2026-11-25-notify-rust-close-reason](facts/2026-11-25-notify-rust-close-reason.md): notify-rust 4.17's `wait_for_action` reports every close as `"__closed"`; for the reason (2 = dismissed by the user) use `zbus::block_on(handle.wait_for_action_async(..))`
 - [2026-11-25-easy-switch-prior-art](facts/2026-11-25-easy-switch-prior-art.md): 0x1814 setCurrentHost has no reply, never persist it, wrap `prev`; 0x1815 layout is Solaar's only; MX4 checks still pending (caps, rename of other slots, truncation)
 
+- [2026-11-25-bolt-receiver](facts/2026-11-25-bolt-receiver.md): Bolt C548 on Linux 7.3 = hid-generic (no dj), HID++ on interface 2, MX4 at slot 2 (key B042:A204BE6C), pairing/name registers, 0x1D4B on power-on, transient EPIPE + spurious first error (retry)
+
 ## lessons/
 
 - [2026-11-23-hidpp-error-layout](lessons/2026-11-23-hidpp-error-layout.md): in HID++ error reports the original feature index is byte 3 (header position), not the first param

@@ -44,7 +44,7 @@ over a channel and wait at most 10 s. Nothing here touches the data plane except
 | `status` | `{}` | `types::Status`: version, pid, uptime_s, config path + error, bindings, profiles, active profile, context, `remap_enabled`, devices (with `frames`/`dropped`), plugins | `detentctl status` |
 | `remap.get` | `{}` | `{enabled, changed: false}` | `detentctl status` |
 | `remap.set` | `{ enabled: bool }` | `{enabled, changed}` | `detentctl enable \| disable \| toggle` |
-| `devices.list` | `{}` | `[DeviceSummary]` (attached devices) | `detentctl devices` (merged with the sysfs scan) |
+| `devices.list` | `{}` | `[DeviceSummary]` (attached devices; `slot` 1–6 for a device behind a receiver at `node`, absent for direct ones) | `detentctl devices` (merged with the sysfs scan) |
 | `device.get` | `{ device? }` | `DeviceState` | `detentctl devices info`, `settings get` |
 | `device.schema` | `{ device? }` | `[SettingInfo]`: settable paths this device supports, with type, range, value, desired, pending | `detentctl settings list` |
 | `device.set` | `{ device?, path, value, persist? }` | the section's new reported value | `detentctl settings set <path> <value> [--persist]` |

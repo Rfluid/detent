@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use detent_device::requester::{DEFAULT_RETRIES, DEFAULT_TIMEOUT};
 use detent_hidpp_features::{FeatureTable, RequestError, Requester};
-use detent_hidpp_proto::{DeviceIndex, FeatureId, Frame, Kind, ReportId, SoftwareId, classify};
+use detent_hidpp_proto::{FeatureId, Frame, Kind, ReportId, SoftwareId, classify};
 
 use super::Link;
 use crate::msg::{FromDp, ToDp, WorkerMsg};
@@ -27,10 +27,11 @@ fn not_connected(why: &'static str) -> RequestError {
 }
 
 impl RingRequester<'_> {
-    fn frame(fi: u8, func: u8, params: &[u8]) -> Result<Frame, RequestError> {
+    /// A long request to this link's device index (0xFF direct, 1–6 behind a receiver).
+    fn frame(&self, fi: u8, func: u8, params: &[u8]) -> Result<Frame, RequestError> {
         Frame::request_with(
             ReportId::Long,
-            DeviceIndex::DIRECT,
+            self.link.device,
             fi,
             func,
             SoftwareId::DETENT,
@@ -87,7 +88,7 @@ impl Requester for RingRequester<'_> {
         if self.gone.is_some() {
             return Err(not_connected("device gone"));
         }
-        let req = Self::frame(fi, func, params)?;
+        let req = self.frame(fi, func, params)?;
         let mut last = RequestError::Timeout;
         for attempt in 0..=DEFAULT_RETRIES {
             match self.attempt(&req, fi, func) {
@@ -107,7 +108,8 @@ impl Requester for RingRequester<'_> {
         if self.gone.is_some() {
             return Err(not_connected("device gone"));
         }
-        self.link.send(ToDp::Send(Self::frame(fi, func, params)?));
+        let req = self.frame(fi, func, params)?;
+        self.link.send(ToDp::Send(req));
         Ok(())
     }
 }

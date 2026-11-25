@@ -4,7 +4,7 @@ status: current
 version: 0.3.0
 last_updated: 2026-11-25
 last_verified: 2026-11-25
-source_refs: ["crates/hidpp-proto/", "crates/hidpp-features/", "crates/device/src/requester.rs"]
+source_refs: ["crates/hidpp-proto/", "crates/hidpp-features/", "crates/device/src/requester.rs", "crates/device/src/receiver.rs", "crates/hidpp-transport/src/discover.rs", "bins/detentd/src/receivers.rs"]
 owner: "@rfluid"
 tags: [spec, hidpp, protocol]
 ---
@@ -81,7 +81,7 @@ Never send:
 | Change host | `0x1814` | Easy-Switch: slot count, current; switch on request | read verified; switch ⚠ |
 | Hosts info | `0x1815` | Easy-Switch: paired, names; rename on request | layout from Solaar ⚠ |
 | Reprog controls v4 | `0x1B04` (v6 on MX4) | divert buttons, raw XY | verified (CIDs below) |
-| Wireless device status | `0x1D4B` | reconnect notification | layout from prior art; event on device ⚠ (Phase 2) |
+| Wireless device status | `0x1D4B` | reconnect notification | verified through Bolt: power-on sends `11 02 04 00 01 01 01` (status 1, reconfigure 1) |
 | SmartShift enhanced | `0x2111` | wheel mode, auto-shift, torque | verified (MX4 has no 0x2110) |
 | Hi-res wheel | `0x2121` | resolution, invert | verified (read) |
 | Thumbwheel | `0x2150` | invert | verified (read) |
@@ -126,6 +126,40 @@ See [devices/mx-master-4.md](devices/mx-master-4.md#controls-0x1b04-v6).
 - fn 2 set config `[flags, intensity, 0]` (persistent on the device, like Options+).
 - fn 4 play `[waveform, 0, 0]`: one-shot, not stored; safe every ≥ 12 ms.
 - Waveforms: 0x00–0x0E and 0x1B (names in `crates/hidpp-features/src/haptics.rs`).
+
+## Receivers (Logi Bolt)
+
+Verified 2026-11-25 on the owner's Bolt receiver (`046D:C548`, Linux 7.3.4) with the MX
+Master 4 paired at slot 2. Fact file: `.agent/memory/facts/2026-11-25-bolt-receiver.md`.
+
+- **Kernel**: `hid-logitech-dj` has no alias for C548, so `hid-generic` binds all four
+  interfaces. HID++ is on interface 2 only (descriptor: 0xFF00/0x0001 report 0x10 and
+  0xFF00/0x0002 report 0x11). No per-device node exists; Detent opens the receiver node and
+  addresses the device by slot. The kernel sends no HID++ here (no swid-1 traffic, no
+  hi-res wheel reset). Pointer input comes from interface 1's "Logitech USB Receiver Mouse"
+  evdev node, which the data plane uses for chords.
+- **Discovery** (`discover::is_receiver`, `crates/device/src/receiver.rs`): only nodes with
+  a receiver PID *and* the 0xFF00/0x0002 collection count; the receiver's other interfaces
+  are not listed. If `logitech-djreceiver` owns the receiver, it is skipped (the kernel then
+  gives each device its own node, reached at 0xFF) ⚠ untested.
+- **Pairings**: HID++ 1.0 `GET_LONG_REGISTER` (`10 FF 83 B5 <0x50+n> 00 00`) →
+  `11 FF 83 B5 <0x50+n> <kind> <wpid LE ×2> <unit id ×4> ...`; the unit id equals the
+  device's own `0x0003` unitId, so the device key is `<wpid>:<unit id>` (`B042:A204BE6C`).
+  Name: `B5 <0x60+n> 01` → `<0x60+n> 01 <len> <utf-8>`. Empty slot: `8F 83 B5 08`.
+- **Slots**: HID++ 2.0 at index 1–6 through the same node. Ping at an empty slot:
+  `10 0n 8F 00 1E 09 00` (1.0 error form, our swid, code 9). Register `0x02` reports the
+  connected count; `0xF1` is not supported (`8F 81 F1 02`). Register `0x00` (notification
+  flags) reads `00 00 00`; Detent leaves it alone.
+- **Reconnect**: with the receiver's notifications off there is no disconnect event, but
+  a device that powers on sends `0x1D4B` at its slot; the worker resyncs on it (as over
+  Bluetooth). A device that is off when the daemon starts attaches as soon as it sends
+  anything: hotplug keeps receivers with unattached pairings open (`receivers::Watch`).
+- **Write stalls**: a write sometimes fails with EPIPE and succeeds within ~10 ms;
+  `requester::send_retrying` retries up to three times (control plane only). The first
+  register read after a quiet spell can also return a spurious error (`8F 83 B5 08` for
+  a paired slot), so register reads retry a device error once.
+- Unifying (C52B / C532) is not enabled: its pairing registers differ and nobody has
+  checked it on hardware (issue #5).
 
 ## Coexistence with the kernel driver
 

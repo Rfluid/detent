@@ -146,7 +146,10 @@ pub fn devices(st: &Style, rows: &[DeviceRow]) {
         .iter()
         .map(|d| {
             vec![
-                d.node.clone(),
+                match d.slot {
+                    Some(s) => format!("{} #{s}", d.node),
+                    None => d.node.clone(),
+                },
                 d.bus.clone(),
                 format!("{:04X}:{:04X}", d.vendor, d.product),
                 match &d.attached {

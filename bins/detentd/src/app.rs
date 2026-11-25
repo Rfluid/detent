@@ -15,9 +15,10 @@ use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use signal_hook::consts::{SIGINT, SIGTERM};
 use tracing::{debug, error, info, warn};
 
+use crate::device::Target;
 use crate::msg::Cmd;
 use crate::shared::{Shared, lock};
-use crate::{bus, config_watch, conflicts, device, dispatch, ipc};
+use crate::{bus, config_watch, conflicts, device, dispatch, ipc, receivers};
 
 fn init_logging() {
     use tracing_subscriber::EnvFilter;
@@ -83,17 +84,21 @@ fn is_candidate(info: &DeviceInfo) -> bool {
     info.vendor == LOGITECH_VENDOR
 }
 
-fn try_attach(info: &DeviceInfo, shared: &Arc<Shared>) {
+fn try_attach(target: &Target, shared: &Arc<Shared>) {
+    let info = &target.info;
     // udev may still be applying permissions right after `add`: retry briefly.
     for attempt in 0..5 {
-        match device::attach(info, shared) {
+        match device::attach(target, shared) {
             Ok(()) => return,
             Err(e) => {
                 let denied = e
                     .chain()
                     .any(|c| c.to_string().contains("Permission denied"));
                 if attempt == 4 || !denied {
-                    debug!("{}: not attached: {e:#}", info.node.display());
+                    match target.slot() {
+                        Some(s) => debug!("{} slot {s}: not attached: {e:#}", info.node.display()),
+                        None => debug!("{}: not attached: {e:#}", info.node.display()),
+                    }
                     if denied {
                         warn!(
                             "{}: permission denied. Install the udev rules: see \
@@ -109,27 +114,41 @@ fn try_attach(info: &DeviceInfo, shared: &Arc<Shared>) {
     }
 }
 
-fn scan(shared: &Arc<Shared>) {
-    match discover::logitech() {
-        Ok(devs) => {
-            let known: Vec<String> = lock(&shared.devices)
-                .values()
-                .map(|d| d.node.clone())
-                .collect();
-            for d in devs.iter().filter(|d| is_candidate(d)) {
-                if !known.contains(&d.node.display().to_string()) {
-                    try_attach(d, shared);
-                }
-            }
+/// Attach what's new. Returns receivers with paired devices that didn't attach (off), for
+/// [`receivers::Watch`].
+fn scan(shared: &Arc<Shared>) -> Vec<(PathBuf, Vec<u8>)> {
+    let devs = match discover::logitech() {
+        Ok(devs) => devs,
+        Err(e) => {
+            warn!("device scan failed: {e}");
+            return Vec::new();
         }
-        Err(e) => warn!("device scan failed: {e}"),
+    };
+    let direct: Vec<String> = lock(&shared.devices)
+        .values()
+        .filter(|d| d.slot.is_none())
+        .map(|d| d.node.clone())
+        .collect();
+    let mut pending = Vec::new();
+    for d in devs.iter().filter(|d| is_candidate(d)) {
+        if d.receiver {
+            let left = receivers::attach_slots(d, shared, try_attach);
+            if !left.is_empty() {
+                pending.push((d.node.clone(), left));
+            }
+        } else if !direct.contains(&d.node.display().to_string()) {
+            try_attach(&Target::direct(d.clone()), shared);
+        }
     }
+    pending
 }
 
-/// udev monitor on `hidraw`; rescans on any add. Falls back to polling every 5 s if
-/// the monitor can't be created.
+/// udev monitor on `hidraw`; rescans on any add, and when a paired device that is off
+/// wakes up on a watched receiver. Falls back to polling every 5 s if the monitor can't
+/// be created.
 fn hotplug(shared: Arc<Shared>) {
-    scan(&shared);
+    let mut watch = receivers::Watch::default();
+    watch.update(scan(&shared));
     let monitor = udev::MonitorBuilder::new()
         .and_then(|b| b.match_subsystem("hidraw"))
         .and_then(|b| b.listen());
@@ -147,10 +166,21 @@ fn hotplug(shared: Arc<Shared>) {
     let mut last_scan = Instant::now();
     while !shared.shutdown.load(Ordering::Relaxed) {
         let mut added = false;
+        {
+            let watched: Vec<_> = watch.fds().collect();
+            let sock_fd = socket.as_ref().map(|s| s.as_fd());
+            let mut fds: Vec<PollFd<'_>> = sock_fd
+                .iter()
+                .chain(watched.iter())
+                .map(|fd| PollFd::new(fd, PollFlags::IN))
+                .collect();
+            if fds.is_empty() {
+                std::thread::sleep(Duration::from_secs(5));
+            } else {
+                let _ = poll(&mut fds, Some(&tick));
+            }
+        }
         if let Some(sock) = socket.as_ref() {
-            let fd = sock.as_fd();
-            let mut fds = [PollFd::new(&fd, PollFlags::IN)];
-            let _ = poll(&mut fds, Some(&tick));
             for ev in sock.iter() {
                 if ev.event_type() == udev::EventType::Add {
                     debug!("hotplug add: {:?}", ev.devnode());
@@ -158,13 +188,14 @@ fn hotplug(shared: Arc<Shared>) {
                 }
             }
         } else {
-            std::thread::sleep(Duration::from_secs(5));
-            added = true;
+            added |= last_scan.elapsed() > Duration::from_secs(5);
         }
-        if added || last_scan.elapsed() > Duration::from_secs(60) {
-            // A just-added node needs a moment for the kernel driver's own setup.
+        let woke = watch.drain();
+        if added || woke || last_scan.elapsed() > Duration::from_secs(60) {
+            // A just-added node needs a moment for the kernel driver's own setup; a
+            // device that just woke up is still reconnecting.
             std::thread::sleep(Duration::from_millis(300));
-            scan(&shared);
+            watch.update(scan(&shared));
             last_scan = Instant::now();
         }
     }
