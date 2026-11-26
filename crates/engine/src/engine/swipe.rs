@@ -1,9 +1,10 @@
 //! Raw XY (HID++ 0x1B04 event 1) while a swipe modifier is held: accumulate the motion
-//! and classify it into a swipe edge once it passes the physical threshold. **Hot path.**
+//! and classify it into one of 8 swipe edges once it passes the physical thresholds.
+//! **Hot path.**
 
 use crate::Edge;
 use crate::action::DeviceCmd;
-use crate::compiled::{Compiled, slot};
+use crate::compiled::{Compiled, SwipeThresholds, slot};
 use crate::modifiers::MAX_MODIFIERS;
 use crate::out::{ControlOut, Out};
 
@@ -38,14 +39,10 @@ impl Engine {
             }
             sw.dx += i32::from(dx);
             sw.dy += i32::from(dy);
-            match swipe_direction(sw.dx, sw.dy, cfg.swipe_threshold_um, self.dpi) {
+            match swipe_direction(sw.dx, sw.dy, cfg.swipe, self.dpi) {
                 SwipeDir::Pending => {}
-                // Past the threshold but no dominant axis: a decided move that does
-                // nothing (and is no tap on release).
-                SwipeDir::Diagonal => {
-                    self.slots[s.0 as usize].used = true;
-                    gesture_haptic(cfg, out);
-                }
+                // Any direction, bound or not, decides the hold (no tap on release);
+                // an unbound one looks up `Action::None` and fires nothing.
                 SwipeDir::Edge(edge) => {
                     self.slots[s.0 as usize].used = true;
                     gesture_haptic(cfg, out);
@@ -72,39 +69,50 @@ pub(super) fn gesture_haptic(cfg: &Compiled, out: &mut Out) {
 /// Result of classifying the movement accumulated during a hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwipeDir {
-    /// Not yet `threshold_um` of physical distance.
+    /// Not far enough yet for the sector the movement is in.
     Pending,
-    /// Past the threshold with no axis dominating by 1.3×: decided, fires nothing.
-    Diagonal,
-    /// Past the threshold along a dominant axis.
+    /// Decided: one of the 8 swipe edges.
     Edge(Edge),
 }
 
-/// Classify the accumulated movement once it passes `threshold_um` of physical distance:
-/// a swipe edge when one axis dominates the other by ≥ 1.3×, else a diagonal.
-/// Screen coordinates: +y is down.
+/// Classify the accumulated movement (device counts, screen coordinates: +y is down).
+///
+/// Each axis is scaled by its own threshold, which turns the threshold ellipse
+/// `(x/x_um)² + (y/y_um)² = 1` into the unit circle. Once the movement leaves it:
+/// - one scaled axis ≥ 1.3× the other → up/down/left/right;
+/// - otherwise → a diagonal (at 45° in the scaled plane: `x_um/√2` across, `y_um/√2`
+///   up or down).
+///
+/// With `x_um == y_um` this is a plain distance threshold on the raw movement.
 #[inline]
-pub fn swipe_direction(dx: i32, dy: i32, threshold_um: u32, dpi: u16) -> SwipeDir {
-    let (ax, ay) = (i64::from(dx).abs(), i64::from(dy).abs());
+pub fn swipe_direction(dx: i32, dy: i32, t: SwipeThresholds, dpi: u16) -> SwipeDir {
+    let (ax, ay) = (i128::from(dx).abs(), i128::from(dy).abs());
+    let (tx, ty) = (i128::from(t.x_um.max(1)), i128::from(t.y_um.max(1)));
+    // Multiply through by tx·ty instead of dividing: nx/(tx·ty) = ax/tx.
+    let (nx, ny) = (ax * ty, ay * tx);
     // counts * 25400 / dpi = micrometres; compare squared to avoid sqrt.
-    let dist2_um = (ax * ax + ay * ay) * 25_400 * 25_400;
-    let thr = i64::from(threshold_um) * i64::from(dpi.max(1));
-    if dist2_um < thr * thr {
+    let r = tx * ty * i128::from(dpi.max(1));
+    if (nx * nx + ny * ny) * 25_400 * 25_400 < r * r {
         return SwipeDir::Pending;
     }
-    if ax * 10 >= ay * 13 {
-        SwipeDir::Edge(if dx > 0 {
+    SwipeDir::Edge(if nx * 10 >= ny * 13 {
+        if dx > 0 {
             Edge::SwipeRight
         } else {
             Edge::SwipeLeft
-        })
-    } else if ay * 10 >= ax * 13 {
-        SwipeDir::Edge(if dy > 0 {
+        }
+    } else if ny * 10 >= nx * 13 {
+        if dy > 0 {
             Edge::SwipeDown
         } else {
             Edge::SwipeUp
-        })
+        }
     } else {
-        SwipeDir::Diagonal
-    }
+        match (dx > 0, dy > 0) {
+            (true, true) => Edge::SwipeDownRight,
+            (true, false) => Edge::SwipeUpRight,
+            (false, true) => Edge::SwipeDownLeft,
+            (false, false) => Edge::SwipeUpLeft,
+        }
+    })
 }

@@ -2,8 +2,8 @@
 title: Bindings, chords, layers and gestures
 status: current
 version: 0.2.0
-last_updated: 2026-11-24
-last_verified: 2026-11-24
+last_updated: 2026-11-26
+last_verified: 2026-11-26
 source_refs: ["crates/engine/src/bindings.rs", "crates/engine/src/modifiers.rs", "crates/engine/src/engine.rs", "crates/engine/src/engine/", "crates/engine/src/compiled.rs", "crates/config/src/trigger.rs", "crates/config/src/compile.rs"]
 owner: "@rfluid"
 tags: [architecture, bindings, hot-path]
@@ -22,7 +22,8 @@ layer  = profile.layers[held_modifier_mask]             // LayerMap, 256-entry a
 
 - `control_slot`: fixed slots (`left right middle back forward gesture smartshift thumb wheel
   thumbwheel swipe`) plus extra slots for unnamed CIDs.
-- `edge`: Press, Release, Tap, Hold, RotatePos/Neg, SwipeUp/Down/Left/Right.
+- `edge`: Press, Release, Tap, Hold, RotatePos/Neg, SwipeUp/Down/Left/Right,
+  SwipeUpLeft/UpRight/DownLeft/DownRight.
 - `Action`: closed `Copy` enum ≤ 32 bytes (`crates/engine/src/action.rs`).
 - Profiles: `profiles[0]` is the base; each `[profile.x]` is base + its overrides, compiled
   up front. Switching profile is an index change, no HID++ traffic (diversion is the union).
@@ -63,8 +64,8 @@ first.**
 
 A press starts "undecided":
 - another control pressed (or the wheel turned) → **chord**; tap/swipe/hold cancelled
-- raw XY movement past the threshold → **swipe** (dominant axis) or **diagonal** (nothing),
-  decided once per hold
+- raw XY movement past the threshold → **swipe** in one of 8 directions (an unbound one
+  fires nothing), decided once per hold
 - held for `hold(N ms)` → **hold** (timer = the data plane's poll timeout)
 - released while still undecided → **tap**
 
@@ -75,14 +76,22 @@ fires once.
 
 - The first raw-XY frame after a press is dropped (some firmware sends garbage).
 - Movement is accumulated in device counts and converted to physical distance with the
-  current DPI: `threshold_mm` (default **6 mm**, owner's choice) is the same feel at any DPI.
-- Direction is decided once, when the movement passes the threshold: the dominant axis if
-  it exceeds the other by **1.3×**, else a **diagonal**, which fires nothing and also
-  cancels the tap (owner's choice, 2026-11-24: diagonals are "no action", not "the nearest
-  axis" and not "a tap"). Screen convention: +y is down.
+  current DPI, so a threshold is the same feel at any DPI.
+- The threshold is set per axis (owner's choice, 2026-11-26): `threshold_x_mm` (left/right,
+  default **6 mm**) and `threshold_y_mm` (up/down, default **3 mm**); `threshold_mm` is a
+  shorthand for both. Together they form an
+  ellipse `(x/X)² + (y/Y)² = 1`; the hold resolves when the movement leaves it. Diagonal
+  distances are derived from it, never set on their own: at 45° (in the scaled plane below)
+  a diagonal needs `X/√2` across and `Y/√2` up or down. With X = Y this is the original
+  circle.
+- Direction is decided once, at that moment (`swipe_direction`), with each axis scaled by
+  its threshold (`x/X`, `y/Y`): one scaled axis ≥ **1.3×** the other → up/down/left/right,
+  else a **diagonal** (up_left, up_right, down_left, down_right). Diagonals are bindable
+  (owner's choice, 2026-11-26, superseding 2026-11-24's "diagonals do nothing"); an unbound
+  one still fires nothing and cancels the tap. Screen convention: +y is down.
 - Haptic confirmation (`[gesture] haptic`, owner's choice 2026-11-24): when a swipe
-  modifier's hold resolves as a gesture (a swipe in any direction, bound or not; a
-  diagonal; or a tap, i.e. no direction) the engine pushes one `HapticPulse` to the
+  modifier's hold resolves as a gesture (a swipe in any of the 8 directions, bound or not;
+  or a tap, i.e. no direction) the engine pushes one `HapticPulse` to the
   control ring alongside the action. Chords and holds don't pulse. The pulse goes through
   the worker like any device command, so it never blocks the event path.
 

@@ -177,4 +177,71 @@ mod tests {
         assert_eq!(haptic("\"subtle-collision\""), Ok(Some(4)));
         assert!(haptic("\"nope\"").unwrap_err().contains("unknown waveform"));
     }
+
+    #[test]
+    fn diagonal_swipes_and_axis_thresholds() {
+        use detent_engine::SwipeThresholds;
+        let swipe = |g: &str| {
+            super::load(&format!("[gesture]\n{g}\n"))
+                .map(|c| c.engine.swipe)
+                .map_err(|e| e.to_string())
+        };
+        let default = SwipeThresholds {
+            x_um: 6000,
+            y_um: 3000,
+        };
+        assert_eq!(super::load("").unwrap().engine.swipe, default);
+        assert_eq!(swipe("haptic = true"), Ok(default));
+        assert_eq!(
+            swipe("threshold_mm = 8"),
+            Ok(SwipeThresholds::uniform(8000))
+        );
+        assert_eq!(
+            swipe("threshold_x_mm = 10\nthreshold_y_mm = 3.5"),
+            Ok(SwipeThresholds {
+                x_um: 10_000,
+                y_um: 3500
+            })
+        );
+        assert_eq!(
+            swipe("threshold_mm = 8\nthreshold_y_mm = 4"),
+            Ok(SwipeThresholds {
+                x_um: 8000,
+                y_um: 4000
+            }),
+            "an unset axis falls back to threshold_mm"
+        );
+        assert_eq!(
+            swipe("threshold_y_mm = 4"),
+            Ok(SwipeThresholds {
+                x_um: 6000,
+                y_um: 4000
+            }),
+            "...or to its default"
+        );
+        assert!(
+            swipe("threshold_y_mm = 0.5")
+                .unwrap_err()
+                .contains("threshold_y_mm")
+        );
+
+        let text = "[layer.gesture]\nhold = \"gesture\"\n\
+                    \"swipe.up_left\" = { keys = \"a\" }\n\
+                    \"swipe.down_right\" = { keys = \"b\" }\n";
+        let c = super::load(text).unwrap();
+        let t = &c.engine.profiles[0].bindings;
+        assert!(matches!(
+            t.lookup(LayerId(1), slot::SWIPE, Edge::SwipeUpLeft),
+            Action::Keys(_)
+        ));
+        assert!(matches!(
+            t.lookup(LayerId(1), slot::SWIPE, Edge::SwipeDownRight),
+            Action::Keys(_)
+        ));
+        assert!(
+            t.lookup(LayerId(1), slot::SWIPE, Edge::SwipeUpRight)
+                .is_none()
+        );
+        assert_eq!(c.engine.swipe_mods.0, 1);
+    }
 }

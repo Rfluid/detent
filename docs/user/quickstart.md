@@ -90,7 +90,7 @@ detentctl settings set haptics.intensity 70 --persist
 | Hold gesture + move **down** | like a 4-finger touchpad swipe down: Grid (from Grid → Overview, from Overview → closed) |
 | Hold gesture + move **up** | maximize / restore the window |
 | Hold gesture + move **left / right** | the next / previous desktop |
-| Hold gesture + move **diagonally** | nothing |
+| Hold gesture + move **diagonally** | nothing (bind `swipe.up_left`, ... to use them; see `docs/specs/config.md`) |
 | Hold gesture + **left click** | region screenshot (Spectacle) |
 | Hold gesture + **right click** | play / pause |
 | Hold gesture + **wheel** | next / previous tab |

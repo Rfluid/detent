@@ -27,10 +27,14 @@ pub enum Edge {
     SwipeDown,
     SwipeLeft,
     SwipeRight,
+    SwipeUpLeft,
+    SwipeUpRight,
+    SwipeDownLeft,
+    SwipeDownRight,
 }
 
 impl Edge {
-    pub const COUNT: usize = 10;
+    pub const COUNT: usize = 14;
 }
 
 /// Immutable after compile; shared with the data plane through `ArcSwap`.

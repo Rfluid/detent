@@ -8,7 +8,7 @@ use detent_engine::action::{ActionId, CmdId, DeviceCmd, KeyChord, ParamsRef, Plu
 use detent_engine::out::code::*;
 use detent_engine::{
     Action, Compiled, ControlOut, Edge, Engine, GrabChange, LayerId, ModMask, Out, OutEvent,
-    SlotInfo, Tables, slot,
+    SlotInfo, SwipeThresholds, Tables, slot,
 };
 
 const GESTURE_CID: u16 = 0x00C3;
@@ -17,7 +17,8 @@ const THUMB_CID: u16 = 0x01A0;
 const KEY_LEFTCTRL: u16 = 29;
 const KEY_TAB: u16 = 15;
 
-/// gesture = modifier 0 with a layer (layer 1): swipes, `left` → exec 2, wheel → Ctrl+Tab.
+/// gesture = modifier 0 with a layer (layer 1): swipe up → exec 3, left → exec 4,
+/// down-right → exec 6, `left` → exec 2, wheel → Ctrl+Tab.
 /// Base: gesture.tap → exec 1, thumb.press → action 7. Middle diverted (used in layer).
 fn cfg() -> Compiled {
     let mut c = Compiled::default();
@@ -48,7 +49,7 @@ fn cfg() -> Compiled {
     c.modifier_slots[0] = Some(slot::GESTURE);
     c.grab_mods = ModMask(1);
     c.swipe_mods = ModMask(1);
-    c.swipe_threshold_um = 6000;
+    c.swipe = SwipeThresholds::uniform(6000);
     let mut t = Tables::new(2);
     let mut m = ModMask::default();
     m.press(0);
@@ -77,6 +78,12 @@ fn cfg() -> Compiled {
         slot::SWIPE,
         Edge::SwipeLeft,
         Action::Exec(CmdId(4)),
+    );
+    b.set(
+        LayerId(1),
+        slot::SWIPE,
+        Edge::SwipeDownRight,
+        Action::Exec(CmdId(6)),
     );
     let ctrl_tab = KeyChord::new(&[KEY_LEFTCTRL, KEY_TAB]).unwrap();
     b.set(
@@ -183,16 +190,55 @@ fn diagonal_below_threshold_waits_for_dominant_axis() {
 }
 
 #[test]
-fn diagonal_past_threshold_does_nothing_and_cancels_tap() {
+fn unbound_diagonal_does_nothing_and_cancels_tap() {
     let mut h = H::new();
     h.buttons([GESTURE_CID, 0, 0, 0]);
     h.xy(0, 0);
-    assert!(execs(h.xy(-200, -200)).is_empty(), "diagonal fires nothing");
+    assert!(
+        execs(h.xy(-200, -200)).is_empty(),
+        "up-left is unbound: fires nothing"
+    );
     assert!(execs(h.xy(-400, 0)).is_empty(), "decided: once per hold");
     assert!(
         execs(h.buttons([0; 4])).is_empty(),
         "no tap after a diagonal"
     );
+}
+
+#[test]
+fn bound_diagonal_fires_once() {
+    let mut h = H::new();
+    h.buttons([GESTURE_CID, 0, 0, 0]);
+    h.xy(0, 0);
+    // 6 mm = 236 counts at 1000 dpi; at 45° that is 167 counts per axis
+    assert!(execs(h.xy(160, 160)).is_empty());
+    assert_eq!(execs(h.xy(10, 10)), vec![6]);
+    assert!(execs(h.xy(200, 200)).is_empty(), "once per hold");
+    assert!(execs(h.buttons([0; 4])).is_empty(), "no tap after a swipe");
+}
+
+#[test]
+fn thresholds_set_per_axis() {
+    let mut h = H::new();
+    // 12 mm across (472 counts at 1000 dpi), 3 mm up/down (118 counts)
+    h.c.swipe = SwipeThresholds {
+        x_um: 12_000,
+        y_um: 3_000,
+    };
+    let mut hold = |moves: &[(i16, i16)]| {
+        h.buttons([GESTURE_CID, 0, 0, 0]);
+        h.xy(0, 0);
+        let fired: Vec<Vec<u16>> = moves.iter().map(|&(x, y)| execs(h.xy(x, y))).collect();
+        h.buttons([0; 4]);
+        fired
+    };
+    // left: pending at 10.2 mm, fires at 12.2 mm
+    assert_eq!(hold(&[(-400, 0), (-80, 0)]), [vec![], vec![4]]);
+    // up: fires after only 3 mm
+    assert_eq!(hold(&[(0, -100), (0, -20)]), [vec![], vec![3]]);
+    // the derived diagonal is wide and shallow: at 45° on the ellipse it is
+    // 12/√2 = 8.5 mm across (334 counts) and 3/√2 = 2.1 mm down (83 counts)
+    assert_eq!(hold(&[(300, 75), (40, 10)]), [vec![], vec![6]]);
 }
 
 fn haptics(out: &Out) -> usize {
@@ -475,15 +521,33 @@ fn lease_expires_and_escape_chord_revokes() {
 #[test]
 fn swipe_threshold_scales_with_dpi() {
     use detent_engine::engine::{SwipeDir, swipe_direction};
+    let t = SwipeThresholds::uniform(6000);
     // 6 mm: 236 counts at 1000 dpi, 945 at 4000 dpi
     assert_eq!(
-        swipe_direction(0, -240, 6000, 1000),
+        swipe_direction(0, -240, t, 1000),
         SwipeDir::Edge(Edge::SwipeUp)
     );
-    assert_eq!(swipe_direction(0, -240, 6000, 4000), SwipeDir::Pending);
+    assert_eq!(swipe_direction(0, -240, t, 4000), SwipeDir::Pending);
     assert_eq!(
-        swipe_direction(950, 0, 6000, 4000),
+        swipe_direction(950, 0, t, 4000),
         SwipeDir::Edge(Edge::SwipeRight)
     );
-    assert_eq!(swipe_direction(700, 700, 6000, 4000), SwipeDir::Diagonal);
+    // 45°: 6 mm / √2 = 4.24 mm per axis = 668 counts at 4000 dpi
+    assert_eq!(swipe_direction(660, 660, t, 4000), SwipeDir::Pending);
+    assert_eq!(
+        swipe_direction(700, 700, t, 4000),
+        SwipeDir::Edge(Edge::SwipeDownRight)
+    );
+    assert_eq!(
+        swipe_direction(-700, 700, t, 4000),
+        SwipeDir::Edge(Edge::SwipeDownLeft)
+    );
+    assert_eq!(
+        swipe_direction(700, -700, t, 4000),
+        SwipeDir::Edge(Edge::SwipeUpRight)
+    );
+    assert_eq!(
+        swipe_direction(-700, -700, t, 4000),
+        SwipeDir::Edge(Edge::SwipeUpLeft)
+    );
 }

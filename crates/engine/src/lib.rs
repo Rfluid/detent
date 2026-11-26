@@ -20,7 +20,7 @@ pub mod out;
 
 pub use action::Action;
 pub use bindings::{BindingTable, ControlSlot, Edge, LayerId};
-pub use compiled::{Compiled, SlotInfo, Tables, slot};
+pub use compiled::{Compiled, SlotInfo, SwipeThresholds, Tables, slot};
 pub use engine::{Engine, GrabChange};
 pub use leases::{LeaseTable, Owner};
 pub use modifiers::{LayerMap, ModMask};

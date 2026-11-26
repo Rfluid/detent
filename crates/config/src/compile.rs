@@ -7,7 +7,9 @@ use detent_engine::action::{
     ActionId, CmdId, DeviceCmd, HostTarget, KeyChord, ParamsRef, PluginSlot,
 };
 use detent_engine::out::code;
-use detent_engine::{Action, Compiled, ControlSlot, Edge, LayerId, ModMask, Tables, slot};
+use detent_engine::{
+    Action, Compiled, ControlSlot, Edge, LayerId, ModMask, SwipeThresholds, Tables, slot,
+};
 use detent_hidpp_features::cid;
 
 use crate::schema::{Bind, Config, Do, GestureHaptic, GestureSettings, Layer};
@@ -303,16 +305,13 @@ impl<'a> Builder<'a> {
         let ctl = control(&t.control, &mut self.extras, when)?;
         let mut hold_ms = None;
         let edges = match (ctl, &t.edge) {
-            (Ctl::Swipe, Some(EdgeSpec::Up)) => vec![Edge::SwipeUp],
-            (Ctl::Swipe, Some(EdgeSpec::Down)) => vec![Edge::SwipeDown],
-            (Ctl::Swipe, Some(EdgeSpec::Left)) => vec![Edge::SwipeLeft],
-            (Ctl::Swipe, Some(EdgeSpec::Right)) => vec![Edge::SwipeRight],
-            (Ctl::Swipe, _) => {
-                return Err(err(
+            (Ctl::Swipe, e) => vec![e.as_ref().and_then(EdgeSpec::swipe).ok_or_else(|| {
+                err(
                     when,
-                    "swipe needs a direction: swipe.up/down/left/right",
-                ));
-            }
+                    "swipe needs a direction: swipe.up/down/left/right or \
+                     swipe.up_left/up_right/down_left/down_right",
+                )
+            })?],
             (Ctl::Wheel | Ctl::Thumbwheel, Some(EdgeSpec::Up | EdgeSpec::Right)) => {
                 vec![Edge::RotatePos]
             }
@@ -471,13 +470,22 @@ impl<'a> Builder<'a> {
     }
 }
 
-/// `[gesture]`: swipe threshold and haptic confirmation.
+/// `[gesture]`: swipe thresholds and haptic confirmation.
 fn gesture(g: &GestureSettings, out: &mut Compiled) -> Result<(), ConfigError> {
     use detent_hidpp_features::haptics::waveform;
-    if !(1.0..=50.0).contains(&g.threshold_mm) {
-        return Err(err("gesture.threshold_mm", "must be between 1 and 50 mm"));
+    let um = |key: &str, mm: f32| match (1.0..=50.0).contains(&mm) {
+        true => Ok((mm * 1000.0) as u32),
+        false => Err(err(key, "must be between 1 and 50 mm")),
+    };
+    if let Some(mm) = g.threshold_mm {
+        out.swipe = SwipeThresholds::uniform(um("gesture.threshold_mm", mm)?);
     }
-    out.swipe_threshold_um = (g.threshold_mm * 1000.0) as u32;
+    if let Some(mm) = g.threshold_x_mm {
+        out.swipe.x_um = um("gesture.threshold_x_mm", mm)?;
+    }
+    if let Some(mm) = g.threshold_y_mm {
+        out.swipe.y_um = um("gesture.threshold_y_mm", mm)?;
+    }
     out.swipe_haptic = match &g.haptic {
         GestureHaptic::Enabled(false) => None,
         GestureHaptic::Enabled(true) => Some(waveform::DAMP_STATE_CHANGE),
