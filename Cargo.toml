@@ -80,7 +80,7 @@ rtrb               = "0.3"   # wait-free SPSC rings between data plane and contr
 postcard           = { version = "1", features = ["use-std"] }  # plugin bus codec
 serde_json         = "1"     # client IPC + JSON bus codec
 rustix             = { version = "1", features = ["event", "fs", "process", "net"] }  # poll, eventfd, ioctl, seqpacket
-signal-hook        = "0.3"   # SIGTERM/SIGINT → orderly shutdown (undivert, ungrab)
+signal-hook        = "0.4"   # SIGTERM/SIGINT → orderly shutdown (undivert, ungrab)
 evdev              = "0.13"  # EVIOCGRAB for chords on non-divertable buttons
 udev               = "0.9"   # hotplug
 notify             = "8"     # config hot reload
