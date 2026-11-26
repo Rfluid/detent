@@ -76,7 +76,7 @@ roxmltree     = "0.21"    # tests: tray icons parse as SVG
 # External (planned; bump to the latest release when first used)
 anyhow             = "1"
 arc-swap           = "1"     # CompiledConfig hot swap, lock-free reads on the data plane
-rtrb               = "0.3"   # wait-free SPSC rings between data plane and control plane
+rtrb               = "0.4"   # wait-free SPSC rings between data plane and control plane
 postcard           = { version = "1", features = ["use-std"] }  # plugin bus codec
 serde_json         = "1"     # client IPC + JSON bus codec
 rustix             = { version = "1", features = ["event", "fs", "process", "net"] }  # poll, eventfd, ioctl, seqpacket
