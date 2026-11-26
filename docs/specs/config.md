@@ -43,7 +43,7 @@ address, or `"*"`. Every key is optional; omitted settings are left as they are.
 | `dpi_cycle` | list | `[800, 1600, 3200]` for `device = "cycle-dpi"` |
 | `smartshift` | table | `{ mode = "ratchet" \| "free-spin", auto_threshold = 12, torque = 50 }` |
 | `haptics` | table | `{ enabled = true, intensity = 60 }` |
-| `thumbwheel` | table | `{ invert = true }` (default when omitted: inverted, natural direction) |
+| `thumbwheel` | table | `{ invert = true }` (default when omitted: the natural direction, thumb down = left, up = right; that is `invert = true` over Bluetooth and `invert = false` through a Bolt receiver, because the device's own direction differs by link) |
 | `wheel` | table | `{ invert = false }` |
 
 `detentctl set <path> <value> --persist` writes here, keeping your formatting and comments.

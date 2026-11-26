@@ -19,7 +19,8 @@ haptic = true              # pulse when a gesture resolves (any direction, diago
 # dpi_cycle = [800, 1600, 3200]
 # smartshift = { mode = "ratchet", auto_threshold = 12 }
 # haptics = { enabled = true, intensity = 60 }
-# thumbwheel = { invert = true }   # default: inverted (natural); set false for the device's own direction
+# thumbwheel = { invert = true }   # default when omitted: natural (thumb down = left) on every link;
+#                                  # setting it forces the bit on Bluetooth and receiver alike
 
 # ── Bindings ────────────────────────────────────────────────────────────────
 # Trigger grammar: `control`, `control.edge`, `mod + control`, `x.hold(300ms)`, ...

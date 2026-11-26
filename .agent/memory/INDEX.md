@@ -39,6 +39,7 @@ One line per entry. Agents append after each task that produced new learning.
 - [2026-11-25-notify-rust-close-reason](facts/2026-11-25-notify-rust-close-reason.md): notify-rust 4.17's `wait_for_action` reports every close as `"__closed"`; for the reason (2 = dismissed by the user) use `zbus::block_on(handle.wait_for_action_async(..))`
 - [2026-11-25-easy-switch-prior-art](facts/2026-11-25-easy-switch-prior-art.md): 0x1814 setCurrentHost has no reply, never persist it, wrap `prev`; 0x1815 layout (Solaar's) verified on the MX4: names ≤ 24 bytes, any slot renamable, shorter name replaces fully; a real switch to another slot not yet run
 
+- [2026-11-25-thumbwheel-direction-by-link](facts/2026-11-25-thumbwheel-direction-by-link.md): natural = thumb down → left; needs 0x2150 invert on over Bluetooth, off through the Bolt receiver (owner-reported, evdev capture pending)
 - [2026-11-25-bolt-receiver](facts/2026-11-25-bolt-receiver.md): Bolt C548 on Linux 7.3 = hid-generic (no dj), HID++ on interface 2, MX4 at slot 2 (key B042:A204BE6C), pairing/name registers, 0x1D4B on power-on, transient EPIPE + spurious first error (retry)
 
 ## lessons/

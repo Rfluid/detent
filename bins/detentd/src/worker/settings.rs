@@ -4,6 +4,7 @@
 //! accept exactly the same paths and values.
 
 use detent_hidpp_features::{Feature, adjustable_dpi, haptics, smartshift, wheel};
+use detent_hidpp_proto::DeviceIndex;
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -73,10 +74,13 @@ impl Worker {
             _ => None,
         });
 
-        // Default: inverted, so the thumbwheel scrolls naturally (the device ships non-inverted).
+        // Default: the natural direction (thumb down → left, up → right). The device's own
+        // direction differs by link: over Bluetooth it needs the invert bit, through a Logi
+        // Bolt receiver it is already natural (owner-reported, docs/specs/devices/mx-master-4.md).
+        let natural_invert = self.link.device == DeviceIndex::DIRECT;
         let tw_inv = flag("thumbwheel.invert")
             .or(ds.thumbwheel.as_ref().map(|t| t.invert))
-            .or(Some(true));
+            .or(Some(natural_invert));
         st.thumbwheel
             .set_desired(match (tw_inv, st.thumbwheel.reported.clone()) {
                 (Some(i), Some(mut r)) => {

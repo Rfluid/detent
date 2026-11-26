@@ -88,7 +88,7 @@ pub const SETTINGS: &[Setting] = &[
         section: "thumbwheel",
         field: "invert",
         kind: Kind::Bool,
-        doc: "Invert the thumbwheel (Detent default: on, natural lateral scroll)",
+        doc: "Invert the thumbwheel (Detent default: natural, thumb down = left; on over Bluetooth, off through a receiver)",
     },
 ];
 

@@ -4,7 +4,7 @@ status: current
 version: 0.1.0
 last_updated: 2026-11-25
 last_verified: 2026-11-25
-source_refs: ["crates/hidpp-features/src/cid.rs", "crates/hidpp-features/src/haptics.rs", "crates/hidpp-features/src/hosts.rs", "docs/specs/devices/captures/"]
+source_refs: ["crates/hidpp-features/src/cid.rs", "crates/hidpp-features/src/haptics.rs", "crates/hidpp-features/src/hosts.rs", "bins/detentd/src/worker/settings.rs", "docs/specs/devices/captures/"]
 owner: "@rfluid"
 tags: [spec, device, mx-master-4]
 ---
@@ -76,6 +76,22 @@ MX Master 4  [/dev/hidraw10]  link: connected
   haptics       on  intensity 50  (16 waveforms)
   easy-switch   host 1 of 3
 ```
+
+## Thumbwheel direction (0x2150)
+
+The owner's "natural" direction is **thumb down → scroll left, thumb up → scroll right**.
+The invert bit needed to get it depends on the link (owner-reported, 2026-11-25):
+
+| Link | Invert bit for natural |
+|---|---|
+| Bluetooth (direct, index 0xFF) | on |
+| Logi Bolt receiver (slot 1–6) | off |
+
+Through the receiver the pointer comes from the receiver's own "Logitech USB Receiver Mouse"
+interface, not from a per-device input node, so the horizontal-wheel sign reaches evdev
+differently. Detent picks the default per link (`bins/detentd/src/worker/settings.rs`);
+`thumbwheel.invert` in the config overrides it on every link. Not yet captured as evdev
+values on both links: do that before relying on the sign anywhere else.
 
 ## Haptics (0x19B0)
 
