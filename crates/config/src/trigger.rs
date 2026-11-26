@@ -4,11 +4,14 @@
 //! trigger  := (modifier " + ")* target
 //! target   := control ("." edge)?
 //! edge     := press | release | tap | double_tap | hold "(" N "ms)" | up | down | left | right
+//!           | up_left | up_right | down_left | down_right
 //! ```
 //! Examples: `thumb.press`, `gesture + left`, `gesture + thumb + wheel.up`,
 //! `thumb.hold(300ms)`, `swipe.left`. Sequences (`a, b`) are planned (phase 6).
 
 use std::time::Duration;
+
+use detent_engine::Edge;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EdgeSpec {
@@ -21,6 +24,27 @@ pub enum EdgeSpec {
     Down,
     Left,
     Right,
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
+}
+
+impl EdgeSpec {
+    /// `swipe.<direction>` → one of the 8 swipe edges (`None` for non-directions).
+    pub fn swipe(&self) -> Option<Edge> {
+        Some(match self {
+            Self::Up => Edge::SwipeUp,
+            Self::Down => Edge::SwipeDown,
+            Self::Left => Edge::SwipeLeft,
+            Self::Right => Edge::SwipeRight,
+            Self::UpLeft => Edge::SwipeUpLeft,
+            Self::UpRight => Edge::SwipeUpRight,
+            Self::DownLeft => Edge::SwipeDownLeft,
+            Self::DownRight => Edge::SwipeDownRight,
+            _ => return None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,6 +86,10 @@ fn parse_edge(s: &str) -> Result<EdgeSpec, TriggerError> {
         "down" => EdgeSpec::Down,
         "left" => EdgeSpec::Left,
         "right" => EdgeSpec::Right,
+        "up_left" => EdgeSpec::UpLeft,
+        "up_right" => EdgeSpec::UpRight,
+        "down_left" => EdgeSpec::DownLeft,
+        "down_right" => EdgeSpec::DownRight,
         other => {
             let ms = other
                 .strip_prefix("hold(")
@@ -126,6 +154,10 @@ mod tests {
         let t = Trigger::parse("gesture + thumb + wheel.up").unwrap();
         assert_eq!(t.modifiers, vec!["gesture", "thumb"]);
         assert_eq!(t.edge, Some(EdgeSpec::Up));
+
+        let t = Trigger::parse("gesture + swipe.down_right").unwrap();
+        assert_eq!(t.control, "swipe");
+        assert_eq!(t.edge, Some(EdgeSpec::DownRight));
     }
 
     #[test]

@@ -7,8 +7,10 @@ conflict_policy = "warn"   # warn | refuse | ignore  (Solaar / logiops / JuhRadi
 max_lease_ms = 10000       # longest a plugin may own input (radial menu, ...)
 
 [gesture]
-threshold_mm = 6           # hold gesture and move this far (on the desk) to swipe
-haptic = true              # pulse when a gesture resolves (any direction, diagonal or tap);
+threshold_x_mm = 6         # hold gesture and move this far (on the desk) left/right to swipe
+threshold_y_mm = 3         # ... or this far up/down; diagonals are derived from both
+# threshold_mm = 5         # shorthand: the same threshold on both axes
+haptic = true              # pulse when a gesture resolves (any of 8 directions, or a tap);
                            # true = damp-state-change, false, or a waveform name
 
 # ── Device settings ─────────────────────────────────────────────────────────
@@ -40,7 +42,8 @@ do = { action = "kde.overview.up" }
 
 # ── Layers: active while `hold` is held ─────────────────────────────────────
 # Hold the gesture button and move: down = 4-finger swipe down, up = maximize,
-# left = next desktop, right = previous desktop. Diagonals do nothing.
+# left = next desktop, right = previous desktop. Diagonals do nothing unless bound
+# ("swipe.up_left", "swipe.up_right", "swipe.down_left", "swipe.down_right").
 [layer.gesture]
 hold = "gesture"
 "swipe.up" = { action = "kde.window.maximize" }

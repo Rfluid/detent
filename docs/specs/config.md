@@ -2,8 +2,8 @@
 title: Configuration reference
 status: current
 version: 0.2.0
-last_updated: 2026-11-25
-last_verified: 2026-11-25
+last_updated: 2026-11-26
+last_verified: 2026-11-26
 source_refs: ["crates/config/", "config/detent.example.toml", "bins/detentd/src/config_watch.rs", "bins/detentd/src/persist.rs", "crates/update/src/settings.rs"]
 owner: "@rfluid"
 tags: [spec, config]
@@ -29,8 +29,10 @@ active**; `detentctl status` and the log show the error.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `threshold_mm` | `6.0` | Physical movement while holding the modifier before a swipe fires (1–50) |
-| `haptic` | `false` | Haptic pulse when a gesture resolves: a swipe in any direction, a diagonal, or a tap (no movement). `true` = `damp-state-change`, or a waveform name (`subtle-collision`, ...; list them with `detentctl haptic --list`; try one with `detentctl haptic <name>`). Chords don't pulse |
+| `threshold_x_mm` | `6.0` | Physical left/right movement while holding the modifier before a swipe fires (1–50) |
+| `threshold_y_mm` | `3.0` | Physical up/down movement before a swipe fires (1–50). Diagonals (`swipe.up_left`, ...) are derived: the two thresholds form an ellipse and a diagonal fires where it crosses it, e.g. at 45° `threshold_x_mm/√2` across and `threshold_y_mm/√2` up or down |
+| `threshold_mm` | unset | Shorthand: the same threshold on both axes; `threshold_x_mm` / `threshold_y_mm` override it (1–50) |
+| `haptic` | `false` | Haptic pulse when a gesture resolves: a swipe in any of the 8 directions (bound or not), or a tap (no movement). `true` = `damp-state-change`, or a waveform name (`subtle-collision`, ...; list them with `detentctl haptic --list`; try one with `detentctl haptic <name>`). Chords don't pulse |
 
 ## `[device."<name or serial>"]`
 
@@ -54,6 +56,7 @@ address, or `"*"`. Every key is optional; omitted settings are left as they are.
 trigger  := (modifier " + ")* target
 target   := control ("." edge)?
 edge     := press | release | tap | hold | hold(<N>ms) | up | down | left | right
+          | up_left | up_right | down_left | down_right        (swipe only)
 ```
 
 | Example | Meaning |
@@ -61,7 +64,8 @@ edge     := press | release | tap | hold | hold(<N>ms) | up | down | left | righ
 | `thumb` / `thumb.press` | Haptic Sense Panel pressed |
 | `gesture.tap` | gesture pressed and released with no movement or chord |
 | `thumb.hold(400ms)` | held for 400 ms |
-| `gesture + swipe.left` | hold gesture and move left ≥ `threshold_mm` (a diagonal move fires nothing and is no tap) |
+| `gesture + swipe.left` | hold gesture and move left ≥ `threshold_x_mm` |
+| `gesture + swipe.up_right` | hold gesture and move up-right past the X/Y threshold ellipse (an unbound diagonal fires nothing and is no tap) |
 | `gesture + wheel.up` | wheel up while gesture is held |
 | `gesture + thumbwheel` | thumbwheel while gesture is held, continuous (needs a plugin `action`) |
 | `gesture + left` | chord: gesture held, then left pressed |

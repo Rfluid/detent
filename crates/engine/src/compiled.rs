@@ -54,6 +54,32 @@ impl Tables {
     }
 }
 
+/// Swipe threshold per axis, in micrometres of physical movement (DPI-independent).
+/// Together they form an ellipse: left/right fires at `x_um`, up/down at `y_um`, and a
+/// diagonal where its direction crosses the ellipse (at 45°: `x_um/√2`, `y_um/√2`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SwipeThresholds {
+    pub x_um: u32,
+    pub y_um: u32,
+}
+
+impl SwipeThresholds {
+    /// The same threshold on both axes (a circle).
+    pub const fn uniform(um: u32) -> Self {
+        Self { x_um: um, y_um: um }
+    }
+}
+
+impl Default for SwipeThresholds {
+    /// 6 mm across, 3 mm up/down (owner's choice, 2026-11-26).
+    fn default() -> Self {
+        Self {
+            x_um: 6000,
+            y_um: 3000,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Compiled {
     pub slots: [SlotInfo; slot::COUNT],
@@ -64,8 +90,8 @@ pub struct Compiled {
     pub grab_mods: ModMask,
     /// Modifiers whose layer has swipe bindings (diverted with raw XY).
     pub swipe_mods: ModMask,
-    /// Swipe threshold in micrometres of physical movement.
-    pub swipe_threshold_um: u32,
+    /// How far a hold must move before it resolves as a swipe (`[gesture]`).
+    pub swipe: SwipeThresholds,
     /// Haptic waveform played when a swipe modifier's hold resolves: a swipe in any
     /// direction, a diagonal, or a tap (`[gesture] haptic`). `None` = no pulse.
     pub swipe_haptic: Option<u8>,
@@ -80,7 +106,7 @@ impl Default for Compiled {
             modifier_slots: [None; crate::modifiers::MAX_MODIFIERS],
             grab_mods: ModMask::default(),
             swipe_mods: ModMask::default(),
-            swipe_threshold_um: 6000,
+            swipe: SwipeThresholds::default(),
             swipe_haptic: None,
             profiles: vec![Tables::new(1)],
         }

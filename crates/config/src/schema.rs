@@ -27,17 +27,20 @@ pub struct Config {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GestureSettings {
-    /// Physical movement (mm) while holding the modifier before a swipe fires. Default 6.
-    #[serde(default = "default_threshold_mm")]
-    pub threshold_mm: f32,
+    /// Shorthand: the same threshold (mm) on both axes. Overridden per axis below.
+    #[serde(default)]
+    pub threshold_mm: Option<f32>,
+    /// Horizontal threshold (mm): how far left/right a swipe must go. Default 6.
+    /// Diagonals are derived from the X/Y ellipse.
+    #[serde(default)]
+    pub threshold_x_mm: Option<f32>,
+    /// Vertical threshold (mm): how far up/down a swipe must go. Default 3.
+    #[serde(default)]
+    pub threshold_y_mm: Option<f32>,
     /// Haptic pulse when a gesture resolves (swipe in any direction, diagonal or tap):
     /// `true` (damp-state-change), `false`, or a waveform name. Default off.
     #[serde(default)]
     pub haptic: GestureHaptic,
-}
-
-fn default_threshold_mm() -> f32 {
-    6.0
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
