@@ -87,7 +87,7 @@ notify             = "8"     # config hot reload
 zbus               = "5"     # KDE plugin: session D-Bus
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-criterion          = "0.5"   # hot-path benchmarks
+criterion          = "0.8"   # hot-path benchmarks
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
